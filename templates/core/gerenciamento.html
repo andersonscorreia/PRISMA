@@ -1,0 +1,381 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Painel de Gerenciamento - PRISMA{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Painel de Gerenciamento</h2>
+        <p class="text-sm text-gray-500 dark:text-zinc-400">Espaço unificado para administração de clientes, impressoras e operadores</p>
+    </div>
+</div>
+
+<!-- Messages (Alerts) -->
+{% if messages %}
+    <div class="mb-6">
+        {% for msg in messages %}
+            <div class="p-4 rounded-xl text-sm font-semibold flex items-center gap-2.5 shadow-sm
+                {% if msg.tags == 'success' %}bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400{% else %}bg-brand-50 dark:bg-brand-950/30 text-brand-500{% endif %}">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {% if msg.tags == 'success' %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    {% else %}
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    {% endif %}
+                </svg>
+                {{ msg }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Tabs Navigation -->
+<div class="border-b border-gray-200 dark:border-zinc-800 mb-6">
+    <nav class="flex gap-6 text-sm font-medium" aria-label="Tabs">
+        <button id="tab-clientes-btn" onclick="showTab('clientes')" class="pb-4 px-1 border-b-2 border-brand-500 text-brand-500 font-bold focus:outline-none">
+            Clientes ({{ clientes|length }})
+        </button>
+        <button id="tab-impressoras-btn" onclick="showTab('impressoras')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+            Impressoras ({{ impressoras|length }})
+        </button>
+        <button id="tab-usuarios-btn" onclick="showTab('usuarios')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+            Usuários / Operadores ({{ usuarios|length }})
+        </button>
+        <button id="tab-perfis_oid-btn" onclick="showTab('perfis_oid')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+            Perfis de OID ({{ perfis_oid|length }})
+        </button>
+        <button id="tab-marcas-btn" onclick="showTab('marcas')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+            Marcas ({{ marcas|length }})
+        </button>
+    </nav>
+</div>
+
+<!-- =====================================================
+     TAB 1: CLIENTES
+     ===================================================== -->
+<div id="tab-clientes-content" class="space-y-4">
+    <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-900 dark:text-white text-base">Clientes Cadastrados</h3>
+        <a href="{% url 'cadastrar_cliente' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Novo Cliente
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+            <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Nome do Cliente</th>
+                    <th scope="col" class="px-6 py-4">CNPJ</th>
+                    <th scope="col" class="px-6 py-4">Situação</th>
+                    <th scope="col" class="px-6 py-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                {% for c in clientes %}
+                <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900 dark:text-white">
+                        <a href="{% url 'historico_cliente' c.id %}" class="hover:text-brand-500 hover:underline">
+                            {{ c.nome }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
+                        {{ c.cnpj }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold {% if c.status == 'Ativo' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400{% else %}bg-zinc-100 dark:bg-zinc-800 text-zinc-500{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full {% if c.status == 'Ativo' %}bg-emerald-500{% else %}bg-zinc-400{% endif %}"></span>
+                            {{ c.status }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'editar_cliente' c.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
+                            <a href="{% url 'excluir_cliente' c.id %}" onclick="return confirm('Deseja realmente excluir o cliente {{ c.nome }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =====================================================
+     TAB 2: IMPRESSORAS
+     ===================================================== -->
+<div id="tab-impressoras-content" class="space-y-4 hidden">
+    <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-900 dark:text-white text-base">Impressoras no Inventário</h3>
+        <div class="flex items-center gap-2">
+            <a href="{% url 'cadastrar_impressora' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Nova Impressora
+            </a>
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+            <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Equipamento</th>
+                    <th scope="col" class="px-6 py-4">Número de Série</th>
+                    <th scope="col" class="px-6 py-4">Endereço IP</th>
+                    <th scope="col" class="px-6 py-4">Status Atual</th>
+                    <th scope="col" class="px-6 py-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                {% for p in impressoras %}
+                <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center gap-3">
+                            <div>
+                                <span class="font-bold text-gray-900 dark:text-white block">{{ p.name|default:p.serial_number }}</span>
+                                <span class="text-xs text-gray-400">{{ p.brand.name }}</span>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
+                        {{ p.serial_number }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
+                        {{ p.ip_address|default:"--" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold 
+                            {% if p.status_sistema == 'Ativo' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                            {% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-500{% endif %}">
+                            <span class="w-1.5 h-1.5 rounded-full 
+                                {% if p.status_sistema == 'Ativo' %}bg-emerald-500
+                                {% else %}bg-amber-500{% endif %}">
+                            </span>
+                            {{ p.status_sistema }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'editar_impressora' p.serial_number %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
+                            <a href="{% url 'excluir_impressora' p.serial_number %}" onclick="return confirm('Deseja realmente excluir a impressora {{ p.serial_number }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =====================================================
+     TAB 3: USUARIOS
+     ===================================================== -->
+<div id="tab-usuarios-content" class="space-y-4 hidden">
+    <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-900 dark:text-white text-base">Operadores Cadastrados</h3>
+        <a href="{% url 'cadastrar_usuario' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Novo Usuário
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+            <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Username / Login</th>
+                    <th scope="col" class="px-6 py-4">Nome Completo</th>
+                    <th scope="col" class="px-6 py-4">Perfil de Acesso</th>
+                    <th scope="col" class="px-6 py-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                {% for u in usuarios %}
+                <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-900 dark:text-white font-bold">
+                        {{ u.username }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-gray-600 dark:text-zinc-400">
+                        {{ u.first_name }} {{ u.last_name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold 
+                            {% if u.groups.all.0.name == 'Admin' %}bg-red-50 dark:bg-red-950/40 text-brand-500
+                            {% elif u.groups.all.0.name == 'Técnico' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
+                            {% else %}bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400{% endif %}">
+                            {{ u.groups.all.0.name|default:"Comum" }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'editar_usuario' u.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
+                            {% if u == request.user %}
+                                <span class="text-gray-300 dark:text-zinc-700 cursor-not-allowed" title="Não é possível excluir o próprio usuário logado">Excluir</span>
+                            {% else %}
+                                <a href="{% url 'excluir_usuario' u.id %}" onclick="return confirm('Deseja realmente excluir o usuário {{ u.username }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =====================================================
+     TAB 4: PERFIS DE OID
+     ===================================================== -->
+<div id="tab-perfis_oid-content" class="space-y-4 hidden">
+    <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-900 dark:text-white text-base">Perfis de OID Cadastrados</h3>
+        <a href="{% url 'cadastrar_perfil_oid' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Novo Perfil de OID
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+            <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Marca / Fabricante</th>
+                    <th scope="col" class="px-6 py-4">Tipo</th>
+                    <th scope="col" class="px-6 py-4">Contador Geral OID</th>
+                    <th scope="col" class="px-6 py-4 font-mono">Número de Série OID</th>
+                    <th scope="col" class="px-6 py-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                {% for p in perfis_oid %}
+                <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900 dark:text-white">
+                        {{ p.brand.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 text-zinc-500">
+                            Perfil Ativo
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
+                        {{ p.oid_counter_total }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
+                        {{ p.oid_serial_number }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'editar_perfil_oid' p.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
+                            <a href="{% url 'excluir_perfil_oid' p.id %}" onclick="return confirm('Deseja realmente excluir o perfil de OID {{ p.brand.name }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- =====================================================
+     TAB 5: MARCAS
+     ===================================================== -->
+<div id="tab-marcas-content" class="space-y-4 hidden">
+    <div class="flex items-center justify-between">
+        <h3 class="font-bold text-gray-900 dark:text-white text-base">Marcas Cadastradas</h3>
+        <a href="{% url 'cadastrar_marca' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+            </svg>
+            Nova Marca
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+            <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
+                <tr>
+                    <th scope="col" class="px-6 py-4">Nome da Marca</th>
+                    <th scope="col" class="px-6 py-4">Perfis de OID Associados (Próprios)</th>
+                    <th scope="col" class="px-6 py-4">Perfis de OID Compartilhados</th>
+                    <th scope="col" class="px-6 py-4 text-right">Ações</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100 dark:divide-zinc-800">
+                {% for m in marcas %}
+                <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900 dark:text-white">
+                        {{ m.name }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-600 dark:text-zinc-400">
+                        {% for profile in m.oid_profiles.all %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 font-medium mr-1">{{ profile.name }}</span>
+                        {% empty %}
+                            <span class="text-gray-450 italic">Nenhum perfil próprio</span>
+                        {% endfor %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-xs text-gray-600 dark:text-zinc-400">
+                        {% for profile in m.compatible_oid_profiles.all %}
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 font-medium mr-1">{{ profile.name }}</span>
+                        {% empty %}
+                            <span class="text-gray-450 italic">Nenhum perfil compartilhado</span>
+                        {% endfor %}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
+                        <div class="flex items-center justify-end gap-3">
+                            <a href="{% url 'editar_marca' m.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
+                            <a href="{% url 'excluir_marca' m.id %}" onclick="return confirm('Deseja realmente excluir a marca {{ m.name }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="px-6 py-8 text-center text-gray-400">
+                        Nenhuma marca cadastrada no sistema.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Simple Tab Controller Script -->
+<script>
+    function showTab(tabName) {
+        // Toggle tab styles
+        const tabs = ['clientes', 'impressoras', 'usuarios', 'perfis_oid', 'marcas'];
+        tabs.forEach(t => {
+            const btn = document.getElementById(`tab-${t}-btn`);
+            const content = document.getElementById(`tab-${t}-content`);
+            if (t === tabName) {
+                btn.classList.add('border-brand-500', 'text-brand-500', 'font-bold');
+                btn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+                content.classList.remove('hidden');
+            } else {
+                btn.classList.remove('border-brand-500', 'text-brand-500', 'font-bold');
+                btn.classList.add('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+                content.classList.add('hidden');
+            }
+        });
+
+        // Save tab to state/localStorage
+        localStorage.setItem('management-tab', tabName);
+    }
+
+    // Restore last active tab on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const lastTab = localStorage.getItem('management-tab') || 'clientes';
+        showTab(lastTab);
+    });
+</script>
+{% endblock %}

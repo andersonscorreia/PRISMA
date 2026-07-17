@@ -1,0 +1,608 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Controle de Inventário - PRISMA{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Controle de Inventário & Logística</h2>
+    <p class="text-sm text-gray-500 dark:text-zinc-400">Rastreabilidade do estado físico de todos os ativos do sistema
+    </p>
+</div>
+
+<!-- Messages (Alerts) -->
+{% if messages %}
+<div class="mb-6">
+    {% for msg in messages %}
+    <div class="p-4 rounded-xl text-sm font-semibold flex items-center gap-2.5 shadow-sm
+                {% if msg.tags == 'success' %}bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400
+                {% elif msg.tags == 'warning' %}bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400
+                {% else %}bg-brand-50 dark:bg-brand-950/30 text-brand-500{% endif %}">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {% if msg.tags == 'success' %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {% else %}
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            {% endif %}
+        </svg>
+        {{ msg }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Indicator Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <!-- Card 1: Alocadas -->
+    <div onclick="filterColumns('locadas')"
+        class="bg-gradient-to-br from-blue-50 to-blue-100/55 dark:from-blue-950/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        <div>
+            <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
+                Alocadas em Clientes
+            </span>
+            <span class="text-3xl font-extrabold text-blue-900 dark:text-blue-100 mt-2 block">
+                {{ total_alocadas }}
+            </span>
+        </div>
+        <div class="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Card 2: Estoque -->
+    <div onclick="filterColumns('estoque')"
+        class="bg-gradient-to-br from-emerald-50 to-emerald-100/55 dark:from-emerald-950/20 dark:to-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        <div>
+            <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                Disponíveis em Estoque
+            </span>
+            <span class="text-3xl font-extrabold text-emerald-900 dark:text-emerald-100 mt-2 block">
+                {{ total_estoque }}
+            </span>
+        </div>
+        <div class="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Card 3: Manutenção -->
+    <div onclick="filterColumns('manutencao')"
+        class="bg-gradient-to-br from-amber-50 to-amber-100/55 dark:from-amber-950/20 dark:to-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        <div>
+            <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
+                Em Manutenção
+            </span>
+            <span class="text-3xl font-extrabold text-amber-900 dark:text-amber-100 mt-2 block">
+                {{ total_manutencao }}
+            </span>
+        </div>
+        <div class="p-3 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+        </div>
+    </div>
+</div>
+
+<!-- View Switcher -->
+<div
+    class="mb-6 border-b border-gray-200 dark:border-zinc-800 flex gap-6 text-sm font-semibold uppercase tracking-wider">
+    <button id="view-status-btn" onclick="switchView('status')"
+        class="pb-3 border-b-2 border-brand-500 text-brand-500 font-bold focus:outline-none flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+        Visão Geral por Status
+    </button>
+    <button id="view-clientes-btn" onclick="switchView('clientes')"
+        class="pb-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none flex items-center gap-2 transition-all">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        Visão por Cliente
+    </button>
+</div>
+
+<!-- Column Filters Pill Bar -->
+<div id="col-filters-bar" class="mb-6 flex flex-wrap items-center gap-2 text-xs max-w-4xl mx-auto">
+    <span class="text-gray-500 font-semibold dark:text-zinc-400">Filtrar por Status:</span>
+    <button id="btn-filter-all" onclick="filterColumns('all')"
+        class="px-3 py-1.5 rounded-xl font-bold bg-brand-500 text-white shadow-sm transition-all focus:outline-none border border-transparent">
+        Mostrar Todas
+    </button>
+    <button id="btn-filter-estoque" onclick="filterColumns('estoque')"
+        class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        Disponíveis ({{ estoque|length }})
+    </button>
+    <button id="btn-filter-locadas" onclick="filterColumns('locadas')"
+        class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+        Alocadas ({{ alocadas|length }})
+    </button>
+    <button id="btn-filter-manutencao" onclick="filterColumns('manutencao')"
+        class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        Manutenção ({{ manutencao|length }})
+    </button>
+</div>
+
+<!-- CONTAINER 1: VISÃO DE STATUS (LISTA COMPLETA FULL-WIDTH) -->
+<div id="view-status-container" class="space-y-3 max-w-4xl mx-auto">
+    {% for p in impressoras %}
+    <div class="p-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 printer-row transition-all hover:border-gray-300 dark:hover:border-zinc-700"
+        data-status="{{ p.status|lower }}">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-grow">
+            <!-- Status tag -->
+            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 text-center w-28
+                {% if p.status == 'ESTOQUE' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                {% elif p.status == 'ALOCADA' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
+                {% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400{% endif %}">
+                {{ p.get_status_display }}
+            </span>
+
+            <div class="space-y-1">
+                <h4 class="font-bold text-gray-950 dark:text-white text-base">
+                    {{ p.brand.name }} {{ p.name|default:p.modelo|default:"Genérica" }}
+                </h4>
+                <div
+                    class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-450 dark:text-zinc-400 font-medium">
+                    <span class="font-mono text-gray-400 dark:text-zinc-500">S/N: {{ p.serial_number }}</span>
+                    {% if p.status == 'ALOCADA' %}
+                    <span class="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        Cliente: {{ p.cliente.nome }}
+                    </span>
+                    {% elif p.status == 'MANUTENÇÃO' %}
+                    {% with last_rep=p.manutencoes.last %}
+                    {% if last_rep %}
+                    <span class="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Defeito: {{ last_rep.descricao_problema }}
+                    </span>
+                    {% endif %}
+                    {% endwith %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div
+            class="flex items-center gap-3 shrink-0 self-end md:self-auto border-t md:border-t-0 border-gray-50 dark:border-zinc-800/45 pt-3 md:pt-0 w-full md:w-auto justify-end">
+            {% if p.status == 'ESTOQUE' %}
+            <button
+                onclick="openMaintenanceModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
+                class="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-bold rounded-xl transition-colors">
+                Manutenção
+            </button>
+            <button
+                onclick="openAllocationModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
+                class="px-3.5 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                Alocar
+            </button>
+            {% elif p.status == 'ALOCADA' %}
+            <button
+                onclick="openMaintenanceModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
+                class="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-bold rounded-xl transition-colors">
+                Manutenção
+            </button>
+            <form method="POST" action="{% url 'inventario_liberar' %}">
+                {% csrf_token %}
+                <input type="hidden" name="impressora_id" value="{{ p.serial_number }}">
+                <button type="submit"
+                    class="px-3.5 py-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                    Mover para o Estoque
+                </button>
+            </form>
+            {% elif p.status == 'MANUTENÇÃO' %}
+            <form method="POST" action="{% url 'inventario_liberar' %}">
+                {% csrf_token %}
+                <input type="hidden" name="impressora_id" value="{{ p.serial_number }}">
+                <button type="submit"
+                    class="px-3.5 py-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                    Liberar p/ Estoque
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p class="text-xs text-gray-400 italic py-12 text-center">Nenhuma impressora cadastrada no inventário.</p>
+    {% endfor %}
+</div>
+
+<div id="view-clientes-container" class="space-y-4 hidden max-w-4xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+        <div>
+            <h3 class="font-bold text-gray-900 dark:text-white text-lg">Visão de Ativos por Cliente</h3>
+            <span class="text-xs text-gray-500 dark:text-zinc-400 font-semibold">{{ clientes|length }} clientes
+                cadastrados</span>
+        </div>
+        <div class="relative max-w-xs w-full">
+            <input type="text" id="client-search-input" onkeyup="filterClients()"
+                placeholder="Buscar cliente por nome ou CNPJ..."
+                class="block w-full px-3 py-1.5 text-xs bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 placeholder-gray-400">
+        </div>
+    </div>
+
+    {% for c in clientes %}
+    <div class="border border-gray-200 dark:border-zinc-800 rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 shadow-sm transition-all client-accordion-card"
+        data-search="{{ c.nome|lower }} {{ c.cnpj }}">
+        <!-- Accordion Header -->
+        <button onclick="toggleAccordion('client-{{ c.id }}')"
+            class="w-full flex items-center justify-between px-6 py-4 font-bold text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-zinc-800/40 transition-colors">
+            <div class="text-left">
+                <span class="block text-sm sm:text-base font-bold">
+                    {{ c.nome }}
+                </span>
+                <span class="block text-[10px] sm:text-xs font-mono text-gray-400 font-normal mt-0.5">
+                    CNPJ: {{ c.cnpj }}
+                </span>
+            </div>
+            <div class="flex items-center gap-3">
+                <!-- Get allocated count -->
+                {% with allocated_count=c.impressoras.all|length %}
+                <span
+                    class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400">
+                    {{ allocated_count }} alocada{{ allocated_count|pluralize:"s" }}
+                </span>
+                {% endwith %}
+                <svg id="arrow-client-{{ c.id }}"
+                    class="w-5 h-5 transform transition-transform duration-200 text-gray-400" fill="none"
+                    stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </div>
+        </button>
+
+        <!-- Accordion Body -->
+        <div id="content-client-{{ c.id }}"
+            class="hidden px-6 pb-6 border-t border-gray-100 dark:border-zinc-800/50 pt-4 bg-gray-50/20 dark:bg-zinc-900/10">
+            {% with client_printers=c.impressoras.all %}
+            {% if client_printers %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-xs">
+                    <thead class="text-gray-500 dark:text-zinc-400 font-bold uppercase">
+                        <tr>
+                            <th scope="col" class="py-2.5">Equipamento</th>
+                            <th scope="col" class="py-2.5">S/N</th>
+                            <th scope="col" class="py-2.5">Endereço IP</th>
+                            <th scope="col" class="py-2.5">Data de Alocação</th>
+                            <th scope="col" class="py-2.5 text-right">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 text-gray-700 dark:text-zinc-300">
+                        {% for p in client_printers %}
+                        <tr>
+                            <td class="py-3 font-semibold text-gray-900 dark:text-white">
+                                {{ p.brand.name }} {{ p.name|default:p.modelo|default:"Genérica" }}
+                            </td>
+                            <td class="py-3 font-mono">
+                                {{ p.serial_number }}
+                            </td>
+                            <td class="py-3 font-mono text-gray-500">
+                                {{ p.ip_address|default:"--" }}
+                            </td>
+                            <td class="py-3 text-gray-500">
+                                {{ p.data_alocacao|date:"d/m/Y H:i"|default:"--" }}
+                            </td>
+                            <td class="py-3 text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button
+                                        onclick="openMaintenanceModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
+                                        class="px-2.5 py-1 text-[10px] font-bold bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/20 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg transition-colors">
+                                        Reparo / Manutenção
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-xs text-gray-400 italic">Nenhum equipamento alocado neste cliente no momento.</p>
+            {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- =====================================================
+     MODAIS DE AÇÃO LOGÍSTICA
+     ===================================================== -->
+
+<!-- 1. Modal: Alocação em Cliente -->
+<div id="allocation-modal"
+    class="fixed inset-0 z-50 hidden bg-zinc-950/60 backdrop-blur-sm items-center justify-center p-4">
+    <div id="allocation-container"
+        class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-md rounded-2xl shadow-xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+        <div
+            class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-gray-50/50 dark:bg-zinc-900/50">
+            <h3 class="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">Locar para Cliente</h3>
+            <button onclick="closeAllocationModal()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form method="POST" action="{% url 'inventario_alocar' %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="impressora_id" id="alloc-printer-id">
+
+            <div>
+                <span class="text-[10px] font-bold text-gray-400 block uppercase">Equipamento Selecionado</span>
+                <p class="font-bold text-gray-900 dark:text-white text-sm mt-0.5" id="alloc-printer-name"></p>
+            </div>
+
+            <div>
+                <label for="alloc_cliente_id"
+                    class="block text-[10px] font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
+                    Cliente Destinatário
+                </label>
+                <select name="cliente_id" id="alloc_cliente_id" required
+                    class="block w-full px-3 py-2 text-xs bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100">
+                    <option value="">-- Selecione o Cliente --</option>
+                    {% for c in clientes %}
+                    <option value="{{ c.id }}">{{ c.nome }} ({{ c.cnpj }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-zinc-800">
+                <button type="button" onclick="closeAllocationModal()"
+                    class="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-xs font-bold transition-colors">
+                    Confirmar Envio
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 2. Modal: Envio para Manutenção -->
+<div id="maintenance-modal"
+    class="fixed inset-0 z-50 hidden bg-zinc-950/60 backdrop-blur-sm items-center justify-center p-4">
+    <div id="maintenance-container"
+        class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-md rounded-2xl shadow-xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+        <div
+            class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-gray-50/50 dark:bg-zinc-900/50">
+            <h3 class="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">Enviar para Assistência
+            </h3>
+            <button onclick="closeMaintenanceModal()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <form method="POST" action="{% url 'inventario_manutencao' %}" class="p-6 space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="impressora_id" id="maint-printer-id">
+
+            <div>
+                <span class="text-[10px] font-bold text-gray-400 block uppercase">Equipamento Selecionado</span>
+                <p class="font-bold text-gray-900 dark:text-white text-sm mt-0.5" id="maint-printer-name"></p>
+            </div>
+
+            <div>
+                <label for="descricao_problema"
+                    class="block text-[10px] font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
+                    Descrição do Problema / Sintomas
+                </label>
+                <textarea name="descricao_problema" id="descricao_problema" rows="3" required
+                    placeholder="Ex: Riscos pretos na impressão, papel travando na gaveta 2..."
+                    class="block w-full px-3 py-2 text-xs bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 placeholder-gray-400"></textarea>
+            </div>
+
+            <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-zinc-800">
+                <button type="button" onclick="closeMaintenanceModal()"
+                    class="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                    Cancelar
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-amber-50 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">
+                    Confirmar Envio
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Scripts for UI interactions -->
+<script>
+    // 1. Accordion handler
+    function toggleAccordion(id) {
+        const content = document.getElementById(`content-${id}`);
+        const arrow = document.getElementById(`arrow-${id}`);
+
+        if (content.classList.contains('hidden')) {
+            content.classList.remove('hidden');
+            arrow.classList.add('rotate-180');
+        } else {
+            content.classList.add('hidden');
+            arrow.classList.remove('rotate-180');
+        }
+    }
+
+    // 2. View switcher and column filtering logic
+    function switchView(viewName) {
+        const statusBtn = document.getElementById('view-status-btn');
+        const clientesBtn = document.getElementById('view-clientes-btn');
+        const statusContainer = document.getElementById('view-status-container');
+        const clientesContainer = document.getElementById('view-clientes-container');
+        const filtersBar = document.getElementById('col-filters-bar');
+
+        if (viewName === 'status') {
+            statusBtn.classList.add('border-brand-500', 'text-brand-500', 'font-bold');
+            statusBtn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+            clientesBtn.classList.remove('border-brand-500', 'text-brand-500', 'font-bold');
+            clientesBtn.classList.add('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+            statusContainer.classList.remove('hidden');
+            clientesContainer.classList.add('hidden');
+            if (filtersBar) filtersBar.classList.remove('hidden');
+        } else {
+            clientesBtn.classList.add('border-brand-500', 'text-brand-500', 'font-bold');
+            clientesBtn.classList.remove('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+            statusBtn.classList.remove('border-brand-500', 'text-brand-500', 'font-bold');
+            statusBtn.classList.add('border-transparent', 'text-gray-500', 'dark:text-zinc-400');
+            clientesContainer.classList.remove('hidden');
+            statusContainer.classList.add('hidden');
+            if (filtersBar) filtersBar.classList.add('hidden');
+        }
+        localStorage.setItem('inventario-view', viewName);
+    }
+
+    function filterColumns(statusName) {
+        switchView('status');
+
+        // Define status mapping
+        const mapping = {
+            'estoque': 'estoque',
+            'locadas': 'alocada',
+            'manutencao': 'manutenção'
+        };
+
+        const rows = document.querySelectorAll('.printer-row');
+        rows.forEach(row => {
+            const rowStatus = row.getAttribute('data-status');
+            if (statusName === 'all' || rowStatus === mapping[statusName]) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        // Update button styling
+        const filterNames = ['estoque', 'locadas', 'manutencao'];
+        filterNames.forEach(fn => {
+            const btnEl = document.getElementById(`btn-filter-${fn}`);
+            if (btnEl) {
+                if (statusName === fn) {
+                    btnEl.classList.remove('bg-white', 'dark:bg-zinc-900', 'text-gray-700', 'dark:text-zinc-300', 'border-gray-200', 'dark:border-zinc-800');
+                    btnEl.classList.add('bg-brand-500', 'text-white', 'border-transparent');
+                } else {
+                    btnEl.classList.add('bg-white', 'dark:bg-zinc-900', 'text-gray-700', 'dark:text-zinc-300', 'border-gray-200', 'dark:border-zinc-800');
+                    btnEl.classList.remove('bg-brand-500', 'text-white', 'border-transparent');
+                }
+            }
+        });
+
+        // Update "All" button style
+        const allBtn = document.getElementById('btn-filter-all');
+        if (allBtn) {
+            if (statusName === 'all') {
+                allBtn.classList.remove('bg-white', 'dark:bg-zinc-900', 'text-gray-700', 'dark:text-zinc-300', 'border-gray-200', 'dark:border-zinc-800');
+                allBtn.classList.add('bg-brand-500', 'text-white', 'border-transparent');
+            } else {
+                allBtn.classList.add('bg-white', 'dark:bg-zinc-900', 'text-gray-700', 'dark:text-zinc-300', 'border-gray-200', 'dark:border-zinc-800');
+                allBtn.classList.remove('bg-brand-500', 'text-white', 'border-transparent');
+            }
+        }
+
+        localStorage.setItem('inventario-col-filter', statusName);
+    }
+
+    // Restore last active view and filter on reload
+    document.addEventListener('DOMContentLoaded', () => {
+        const lastView = localStorage.getItem('inventario-view') || 'status';
+        switchView(lastView);
+
+        const lastFilter = localStorage.getItem('inventario-col-filter') || 'all';
+        filterColumns(lastFilter);
+    });
+
+    // 3. Client search logic
+    function filterClients() {
+        const input = document.getElementById('client-search-input');
+        const query = input.value.toLowerCase().trim();
+        const cards = document.querySelectorAll('.client-accordion-card');
+
+        cards.forEach(card => {
+            const searchData = card.getAttribute('data-search');
+            if (searchData.includes(query)) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+    }
+
+    // 4. Modal Handlers: Allocation
+    const allocBackdrop = document.getElementById('allocation-modal');
+    const allocContainer = document.getElementById('allocation-container');
+    const allocPrinterId = document.getElementById('alloc-printer-id');
+    const allocPrinterName = document.getElementById('alloc-printer-name');
+
+    function openAllocationModal(id, name) {
+        allocPrinterId.value = id;
+        allocPrinterName.innerText = name;
+
+        allocBackdrop.classList.remove('hidden');
+        allocBackdrop.classList.add('flex');
+        void allocContainer.offsetWidth; // Reflow
+        allocContainer.classList.remove('scale-95', 'opacity-0');
+        allocContainer.classList.add('scale-100', 'opacity-100');
+    }
+
+    function closeAllocationModal() {
+        allocContainer.classList.remove('scale-100', 'opacity-100');
+        allocContainer.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            allocBackdrop.classList.remove('flex');
+            allocBackdrop.classList.add('hidden');
+        }, 150);
+    }
+
+    // 5. Modal Handlers: Maintenance
+    const maintBackdrop = document.getElementById('maintenance-modal');
+    const maintContainer = document.getElementById('maintenance-container');
+    const maintPrinterId = document.getElementById('maint-printer-id');
+    const maintPrinterName = document.getElementById('maint-printer-name');
+
+    function openMaintenanceModal(id, name) {
+        maintPrinterId.value = id;
+        maintPrinterName.innerText = name;
+
+        maintBackdrop.classList.remove('hidden');
+        maintBackdrop.classList.add('flex');
+        void maintContainer.offsetWidth; // Reflow
+        maintContainer.classList.remove('scale-95', 'opacity-0');
+        maintContainer.classList.add('scale-100', 'opacity-100');
+    }
+
+    function closeModal() {
+        maintContainer.classList.remove('scale-100', 'opacity-100');
+        maintContainer.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            maintBackdrop.classList.remove('flex');
+            maintBackdrop.classList.add('hidden');
+        }, 150);
+    }
+</script>
+{% endblock %}

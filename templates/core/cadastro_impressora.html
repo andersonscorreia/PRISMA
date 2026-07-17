@@ -1,0 +1,101 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% firstof title "Cadastrar Impressora" %} - PRISMA{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-8">
+    <div class="mb-6">
+        <a href="{% url 'gerenciamento' %}" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Voltar ao Gerenciamento
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-8">
+        <div class="mb-6 border-b border-gray-100 dark:border-zinc-800 pb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">{% firstof title "Cadastrar Nova Impressora" %}</h2>
+            <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">{% firstof subtitle "Insira as especificações da impressora para incluí-la no inventário." %}</p>
+        </div>
+
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+            {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-xs font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <p class="mt-1 text-xs text-brand-500 font-semibold">{{ field.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-zinc-800">
+                <a href="{% url 'gerenciamento' %}" class="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-brand-500/10">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="oid-profile-mapping" style="display: none;">
+    {% for oid in form.fields.oid_profile.queryset %}
+        <span data-oid-id="{{ oid.id }}" data-brand-id="{{ oid.brand.id }}"></span>
+        {% for b in oid.brands.all %}
+            <span data-oid-id="{{ oid.id }}" data-brand-id="{{ b.id }}"></span>
+        {% endfor %}
+    {% endfor %}
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const brandSelect = document.getElementById("id_brand");
+        const oidProfileSelect = document.getElementById("id_oid_profile");
+        
+        if (!brandSelect || !oidProfileSelect) return;
+        
+        // Mapeamento de OID Profile ID -> Brand ID lido do DOM
+        const profileBrandMap = {};
+        document.querySelectorAll("#oid-profile-mapping span").forEach(span => {
+            const oidId = span.getAttribute("data-oid-id");
+            const brandId = span.getAttribute("data-brand-id");
+            profileBrandMap[oidId] = brandId;
+        });
+        
+        const originalOptions = Array.from(oidProfileSelect.options);
+        
+        function filterOidProfiles() {
+            const selectedBrandId = brandSelect.value;
+            const previousValue = oidProfileSelect.value;
+            
+            oidProfileSelect.innerHTML = "";
+            
+            originalOptions.forEach(option => {
+                if (!option.value) {
+                    oidProfileSelect.appendChild(option.cloneNode(true));
+                    return;
+                }
+                const brandId = profileBrandMap[option.value];
+                if (brandId === selectedBrandId) {
+                    oidProfileSelect.appendChild(option.cloneNode(true));
+                }
+            });
+            
+            // Restaurar valor anterior se ainda for válido na lista filtrada
+            oidProfileSelect.value = previousValue;
+        }
+        
+        brandSelect.addEventListener("change", filterOidProfiles);
+        
+        // Executar no carregamento inicial
+        filterOidProfiles();
+    });
+</script>
+{% endblock %}

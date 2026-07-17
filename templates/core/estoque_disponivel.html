@@ -1,0 +1,56 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Estoque Disponível - PRISMA{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-8">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Estoque Disponível</h2>
+    <p class="text-sm text-gray-500 dark:text-zinc-400">Ativos prontos para locação imediata no estoque</p>
+</div>
+
+<!-- Stock List -->
+{% if not impressoras %}
+<div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-12 text-center shadow-sm">
+    <svg class="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+    </svg>
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Estoque vazio</h3>
+    <p class="text-sm text-gray-500 dark:text-zinc-400 mt-1">
+        Não há nenhuma impressora disponível em estoque no momento.
+    </p>
+</div>
+{% else %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for item in impressoras %}
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all duration-200 p-5 flex flex-col justify-between">
+        <div class="space-y-4">
+            <!-- Header/Badge -->
+            <div class="flex items-start justify-between">
+                <div>
+                    <h4 class="font-bold text-gray-950 dark:text-white text-base">
+                        {{ item.impressora.marca }} {{ item.impressora.modelo }}
+                    </h4>
+                    <span class="text-[10px] font-mono text-gray-400 mt-1 block">
+                        S/N: {{ item.impressora.n_s }}
+                    </span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    Estoque
+                </span>
+            </div>
+        </div>
+
+        <div class="mt-6 border-t border-gray-50 dark:border-zinc-800/40 pt-4 flex justify-end">
+            <a href="{% url 'ciclo_vida_ativo' item.impressora.pk %}" class="text-xs font-bold text-brand-500 hover:text-brand-600 transition-colors inline-flex items-center gap-1">
+                Ciclo de Vida do Ativo
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                </svg>
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

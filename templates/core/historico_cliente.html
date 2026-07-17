@@ -1,0 +1,132 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Histórico do Cliente - PRISMA{% endblock %}
+
+{% block content %}
+<!-- Back button & Page Header -->
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{% url 'dashboard_geral' %}" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 mb-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Voltar ao Dashboard
+        </a>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Linha do Tempo de Ativos</h2>
+        <p class="text-sm text-gray-500 dark:text-zinc-400">Rastreabilidade completa de todas as impressoras utilizadas pelo cliente</p>
+    </div>
+</div>
+
+<!-- Client Information Card -->
+<section class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm mb-8">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold {% if cliente.status == 'Ativo' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400{% else %}bg-zinc-100 dark:bg-zinc-800 text-zinc-500{% endif %} mb-2">
+                <span class="w-1.5 h-1.5 rounded-full {% if cliente.status == 'Ativo' %}bg-emerald-500{% else %}bg-zinc-400{% endif %}"></span>
+                Cliente {{ cliente.status }}
+            </span>
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ cliente.nome }}</h3>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+                <span class="text-gray-400 block text-xs">CNPJ</span>
+                <span class="font-mono font-medium text-gray-800 dark:text-zinc-300">{{ cliente.cnpj }}</span>
+            </div>
+            <div>
+                <span class="text-gray-400 block text-xs">Total de Históricos</span>
+                <span class="font-medium text-gray-800 dark:text-zinc-300 font-semibold">{{ historicos|length }} registro(s)</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Timeline Section -->
+<h3 class="text-lg font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
+    Histórico de Alocações
+</h3>
+
+{% if not historicos %}
+<div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-12 text-center">
+    <svg class="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+    </svg>
+    <p class="text-gray-500 dark:text-zinc-400">Nenhum registro de alocação encontrado para este cliente.</p>
+</div>
+{% else %}
+<div class="relative border-l-2 border-gray-200 dark:border-zinc-800 ml-4 md:ml-6 space-y-8 pb-4">
+    {% for hist in historicos %}
+    <div class="relative pl-6 md:pl-8">
+        <!-- Dot Indicator on Timeline -->
+        <span class="absolute -left-[11px] top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-white dark:bg-zinc-950 shadow-sm
+            {% if not hist.data_saida %}border-brand-500{% else %}border-gray-300 dark:border-zinc-700{% endif %}">
+            <span class="h-2 w-2 rounded-full {% if not hist.data_saida %}bg-brand-500 animate-pulse{% else %}bg-gray-300 dark:bg-zinc-700{% endif %}"></span>
+        </span>
+
+        <!-- Timeline Card -->
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm hover:border-gray-300 dark:hover:border-zinc-700 transition-colors">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+                <div>
+                    <h4 class="font-bold text-gray-900 dark:text-white text-base">
+                        {{ hist.impressora.marca }} {{ hist.impressora.modelo }}
+                    </h4>
+                    <span class="text-xs font-mono text-gray-400">S/N: {{ hist.impressora.n_s }}</span>
+                </div>
+
+                <!-- Date Range Badge -->
+                <div class="text-right">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold
+                        {% if not hist.data_saida %}bg-brand-50 dark:bg-brand-950/40 text-brand-500{% else %}bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400{% endif %}">
+                        {{ hist.data_entrada|date:"d/m/Y" }} - 
+                        {% if hist.data_saida %}
+                            {{ hist.data_saida|date:"d/m/Y" }}
+                        {% else %}
+                            Ativo Atualmente
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Additional Details -->
+            <div class="grid grid-cols-2 gap-4 text-xs text-gray-500 dark:text-zinc-400 mb-4 pb-4 border-b border-gray-100 dark:border-zinc-800">
+                <div>
+                    <span class="text-gray-400 block mb-0.5">Endereço IP</span>
+                    <span class="font-mono font-medium text-gray-700 dark:text-zinc-300">{{ hist.impressora.ip|default:"--" }}</span>
+                </div>
+                <div>
+                    <span class="text-gray-400 block mb-0.5">Status Atual do Ativo</span>
+                    <span class="font-medium text-gray-700 dark:text-zinc-300 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full 
+                            {% if hist.impressora.status == 'Disponível' %}bg-emerald-500
+                            {% elif hist.impressora.status == 'Locada' %}bg-brand-500
+                            {% else %}bg-amber-500{% endif %}">
+                        </span>
+                        {{ hist.impressora.status }}
+                    </span>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="text-sm text-gray-600 dark:text-zinc-300 flex items-start gap-2">
+                <svg class="w-5 h-5 text-gray-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+                </svg>
+                <div>
+                    <p class="font-medium text-xs text-gray-400">Observações do Histórico</p>
+                    <p class="mt-0.5">{{ hist.observacoes|default:"Nenhuma observação registrada." }}</p>
+                </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
+                <a href="{% url 'ciclo_vida_ativo' hist.impressora.pk %}" class="inline-flex items-center gap-1 text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors">
+                    Ver Ciclo de Vida do Ativo
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,47 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% firstof title "Cadastrar Marca" %} - PRISMA{% endblock %}
+
+{% block content %}
+<div class="max-w-xl mx-auto mt-8">
+    <div class="mb-6">
+        <a href="{% url 'gerenciamento' %}" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            Voltar ao Gerenciamento
+        </a>
+    </div>
+
+    <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm p-8">
+        <div class="mb-6 border-b border-gray-100 dark:border-zinc-800 pb-4">
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">{% firstof title "Cadastrar Nova Marca" %}</h2>
+            <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">{% firstof subtitle "Insira os dados da marca para associá-la a impressoras e perfis de OID." %}</p>
+        </div>
+
+        <form method="POST" class="space-y-5">
+            {% csrf_token %}
+            {% for field in form %}
+                <div>
+                    <label for="{{ field.id_for_label }}" class="block text-xs font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
+                        {{ field.label }}
+                    </label>
+                    {{ field }}
+                    {% if field.errors %}
+                        <p class="mt-1 text-xs text-brand-500 font-semibold">{{ field.errors.0 }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-zinc-800">
+                <a href="{% url 'gerenciamento' %}" class="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-sm font-semibold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
+                    Cancelar
+                </a>
+                <button type="submit" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm shadow-brand-500/10">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

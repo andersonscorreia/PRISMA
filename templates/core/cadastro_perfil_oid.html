@@ -1,0 +1,451 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% firstof title "Cadastrar Configuração de OIDs" %} - PRISMA{% endblock %}
+
+{% block content %}
+<style>
+    .field-transition {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        max-height: 500px;
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    .field-transition.hidden-field {
+        max-height: 0;
+        opacity: 0;
+        transform: scale(0.95);
+        overflow: hidden;
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        border: none !important;
+    }
+</style>
+
+<div class="max-w-4xl mx-auto mt-8 px-4 sm:px-6">
+    <!-- Back Link -->
+    <div class="mb-6">
+        <a href="{% url 'gerenciamento' %}"
+            class="inline-flex items-center gap-2 text-sm font-semibold text-zinc-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Voltar ao Gerenciamento
+        </a>
+    </div>
+
+    <!-- Main Container -->
+    <div
+        class="bg-white dark:bg-zinc-900 rounded-3xl border border-gray-150 dark:border-zinc-800 shadow-xl shadow-gray-100/50 dark:shadow-none p-6 sm:p-10">
+        <!-- Header -->
+        <div class="mb-8 border-b border-gray-100 dark:border-zinc-800 pb-5">
+            <h2 class="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{% firstof title "Cadastrar Configuração de OIDs" %}</h2>
+            <p class="text-sm text-gray-500 dark:text-zinc-400 mt-2">{% firstof subtitle "Defina as OIDs SNMP para monitoramento dinâmico desta marca." %}</p>
+        </div>
+
+        <form method="POST" class="space-y-8" id="oid-profile-form">
+            {% csrf_token %}
+
+            <!-- SECTION 1: DADOS BÁSICOS -->
+            <div class="bg-gray-50 dark:bg-zinc-950/40 rounded-2xl p-5 border border-gray-100 dark:border-zinc-800/80">
+                <h3 class="font-bold text-gray-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                    </svg>
+                    Informações Básicas da Impressora
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- Marca Principal -->
+                    <div>
+                        <label for="{{ form.brand.id_for_label }}" class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Marca Principal</label>
+                        {{ form.brand }}
+                        {% if form.brand.errors %}<p class="text-xs text-brand-500 font-semibold mt-1">{{ form.brand.errors.0 }}</p>{% endif %}
+                    </div>
+                    <!-- Nome/Modelo -->
+                    <div>
+                        <label for="{{ form.name.id_for_label }}" class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Nome do Modelo / Perfil</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}<p class="text-xs text-brand-500 font-semibold mt-1">{{ form.name.errors.0 }}</p>{% endif %}
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <!-- Marcas Compatíveis Adicionais (Checkbox List) -->
+                    <label class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-3">Marcas Compatíveis Adicionais</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 bg-white dark:bg-zinc-900 p-4 rounded-xl border border-gray-200 dark:border-zinc-800">
+                        {% for checkbox in form.brands %}
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-zinc-300 cursor-pointer select-none">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.brands.errors %}<p class="text-xs text-brand-500 font-semibold mt-1">{{ form.brands.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <!-- OID Identificadora -->
+                    <div>
+                        <label for="{{ form.printer_oid.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">OID
+                            Identificadora do Modelo</label>
+                        {{ form.printer_oid }}
+                        {% if form.printer_oid.errors %}<p class="text-xs text-brand-500 font-semibold mt-1">{{
+                            form.printer_oid.errors.0 }}</p>{% endif %}
+                    </div>
+                    <!-- Plotter Checkbox -->
+                    <div class="flex items-center pt-6">
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            {{ form.is_plotter }}
+                            <span class="ms-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">É Plotter (Oculta
+                                subcontadores A4/A3)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: CONFIGURAÇÕES DE MONITORAMENTO (FILTROS) -->
+            <div class="bg-gray-50 dark:bg-zinc-950/40 rounded-2xl p-5 border border-gray-100 dark:border-zinc-800/80">
+                <h3 class="font-bold text-gray-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    Parâmetros e Tecnologia de Coleta
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                    <!-- Tecnologia Helper (Laser vs Jato de Tinta) -->
+                    <div>
+                        <span
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Tecnologia
+                            de Impressão</span>
+                        <div
+                            class="grid grid-cols-2 gap-2 bg-white dark:bg-zinc-900 p-1.5 rounded-xl border border-gray-200 dark:border-zinc-800">
+                            <label
+                                class="flex justify-center items-center gap-2 py-2 px-3 rounded-lg text-sm font-bold cursor-pointer transition-all duration-200"
+                                id="tech-laser-label">
+                                <input type="radio" name="tecnologia" value="laser" class="sr-only" checked>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                </svg>
+                                Laser / Toner
+                            </label>
+                            <label
+                                class="flex justify-center items-center gap-2 py-2 px-3 rounded-lg text-sm font-bold cursor-pointer transition-all duration-200"
+                                id="tech-inkjet-label">
+                                <input type="radio" name="tecnologia" value="jato_tinta" class="sr-only">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                </svg>
+                                Jato de Tinta
+                            </label>
+                        </div>
+                    </div>
+                    <!-- Colorida Switch -->
+                    <div class="flex items-center pt-6">
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            {{ form.is_color }}
+                            <span class="ms-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">Colorida</span>
+                        </label>
+                    </div>
+                    <!-- Múltiplos Tamanhos Switch -->
+                    <div class="flex items-center pt-6 field-transition" id="group-multiple-sizes-container">
+                        <label class="relative inline-flex items-center cursor-pointer select-none">
+                            {{ form.multiple_sizes }}
+                            <span class="ms-3 text-sm font-semibold text-gray-700 dark:text-zinc-300">Múltiplos Tamanhos
+                                (A4 e A3)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 3: OIDs BÁSICAS SNMP -->
+            <div class="bg-gray-50 dark:bg-zinc-950/40 rounded-2xl p-5 border border-gray-100 dark:border-zinc-800/80">
+                <h3 class="font-bold text-gray-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    OIDs SNMP Padrão (Sempre Ativas)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label for="{{ form.oid_serial_number.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Número
+                            de Série</label>
+                        {{ form.oid_serial_number }}
+                    </div>
+                    <div>
+                        <label for="{{ form.oid_tempo_ligada.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Uptime
+                            (Tempo Ativo)</label>
+                        {{ form.oid_tempo_ligada }}
+                    </div>
+                    <div>
+                        <label for="{{ form.oid_mensagem_painel.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Mensagem
+                            do Painel</label>
+                        {{ form.oid_mensagem_painel }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 4: CONTADORES (DINÂMICO) -->
+            <div class="bg-gray-50 dark:bg-zinc-950/40 rounded-2xl p-5 border border-gray-100 dark:border-zinc-800/80">
+                <h3 class="font-bold text-gray-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Mapeamento de OIDs de Contadores
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    <div>
+                        <label for="{{ form.oid_counter_total.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Contador
+                            Total</label>
+                        {{ form.oid_counter_total }}
+                    </div>
+                    <!-- Contador A4 / Mono -->
+                    <div id="group-contador-mono" class="field-transition">
+                        <label for="{{ form.oid_counter_mono.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Contador
+                            A4</label>
+                        {{ form.oid_counter_mono }}
+                    </div>
+                    <!-- Contador A3 / Color (CONDICIONAL) -->
+                    <div id="group-contador-color" class="field-transition">
+                        <label for="{{ form.oid_counter_color.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Contador
+                            A3</label>
+                        {{ form.oid_counter_color }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 5: CONSUMÍVEIS (DINÂMICO) -->
+            <div class="bg-gray-50 dark:bg-zinc-950/40 rounded-2xl p-5 border border-gray-100 dark:border-zinc-800/80">
+                <h3 class="font-bold text-gray-900 dark:text-white text-base mb-4 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                    Mapeamento de Nível de Suprimentos
+                </h3>
+
+                <!-- Subgrupo: Laser (Toner) -->
+                <div id="group-toner" class="grid grid-cols-1 md:grid-cols-2 gap-5 field-transition mb-4">
+                    <div>
+                        <label for="{{ form.oid_toner_level.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Status
+                            Atual do Toner</label>
+                        {{ form.oid_toner_level }}
+                    </div>
+                    <div>
+                        <label for="{{ form.oid_toner_full.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Toner
+                            Full (Toner Cheio)</label>
+                        {{ form.oid_toner_full }}
+                    </div>
+                </div>
+
+                <!-- Subgrupo: Caixa Manutenção (Jato de Tinta) -->
+                <div id="group-caixa-manutencao" class="field-transition mb-4">
+                    <div>
+                        <label for="{{ form.oid_caixa_manutencao.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Caixa
+                            de Manutenção</label>
+                        {{ form.oid_caixa_manutencao }}
+                    </div>
+                </div>
+
+                <!-- Subgrupo: Tinta Preta (BK) -->
+                <div id="group-tinta-preta" class="field-transition mb-4">
+                    <div>
+                        <label for="{{ form.oid_tinta_preta.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Tinta
+                            Preta (BK)</label>
+                        {{ form.oid_tinta_preta }}
+                    </div>
+                </div>
+
+                <!-- Subgrupo: Tintas Coloridas (C, M, Y) -->
+                <div id="group-tintas-coloridas" class="grid grid-cols-1 md:grid-cols-3 gap-5 field-transition">
+                    <div>
+                        <label for="{{ form.oid_tinta_ciano.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Tinta
+                            Ciano (C)</label>
+                        {{ form.oid_tinta_ciano }}
+                    </div>
+                    <div>
+                        <label for="{{ form.oid_tinta_magenta.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Tinta
+                            Magenta (M)</label>
+                        {{ form.oid_tinta_magenta }}
+                    </div>
+                    <div>
+                        <label for="{{ form.oid_tinta_amarela.id_for_label }}"
+                            class="block text-xs font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-2">Tinta
+                            Amarela (Y)</label>
+                        {{ form.oid_tinta_amarela }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="pt-6 flex items-center justify-end gap-4 border-t border-gray-100 dark:border-zinc-800">
+                <a href="{% url 'gerenciamento' %}"
+                    class="px-5 py-2.5 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-2xl text-sm font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-all">
+                    Cancelar
+                </a>
+                <button type="submit"
+                    class="px-6 py-2.5 bg-brand-500 hover:bg-brand-600 text-white rounded-2xl text-sm font-bold transition-all shadow-lg shadow-brand-500/20 active:scale-[0.98]">
+                    Salvar Alterações
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- JAVASCRIPT DINÂMICO PARA CONTROLE DE EXIBIÇÃO -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const form = document.getElementById("oid-profile-form");
+        const radioLaser = document.querySelector('input[name="tecnologia"][value="laser"]');
+        const radioInkjet = document.querySelector('input[name="tecnologia"][value="jato_tinta"]');
+        const checkboxColor = document.getElementById("id_is_color");
+        const checkboxPlotter = document.getElementById("id_is_plotter");
+        const checkboxMultipleSizes = document.getElementById("id_multiple_sizes");
+
+        // Elementos de Grupos Dinâmicos
+        const groupToner = document.getElementById("group-toner");
+        const groupCaixa = document.getElementById("group-caixa-manutencao");
+        const groupPreta = document.getElementById("group-tinta-preta");
+        const groupColoridas = document.getElementById("group-tintas-coloridas");
+        const groupContadorMono = document.getElementById("group-contador-mono");
+        const groupContadorColor = document.getElementById("group-contador-color");
+        const groupMultipleSizesContainer = document.getElementById("group-multiple-sizes-container");
+
+        // Rótulos de Tecnologia para estilo dinâmico
+        const laserLabel = document.getElementById("tech-laser-label");
+        const inkjetLabel = document.getElementById("tech-inkjet-label");
+
+        // Estilos para Radio Buttons Personalizados
+        function updateRadioStyles() {
+            if (radioLaser.checked) {
+                laserLabel.classList.add("bg-brand-500", "text-white", "shadow-md", "shadow-brand-500/20");
+                laserLabel.classList.remove("bg-white", "dark:bg-zinc-900", "text-gray-500", "dark:text-zinc-400", "hover:bg-gray-50", "dark:hover:bg-zinc-800");
+
+                inkjetLabel.classList.remove("bg-brand-500", "text-white", "shadow-md", "shadow-brand-500/20");
+                inkjetLabel.classList.add("bg-white", "dark:bg-zinc-900", "text-gray-500", "dark:text-zinc-400", "hover:bg-gray-50", "dark:hover:bg-zinc-800");
+            } else {
+                inkjetLabel.classList.add("bg-brand-500", "text-white", "shadow-md", "shadow-brand-500/20");
+                inkjetLabel.classList.remove("bg-white", "dark:bg-zinc-900", "text-gray-500", "dark:text-zinc-400", "hover:bg-gray-50", "dark:hover:bg-zinc-800");
+
+                laserLabel.classList.remove("bg-brand-500", "text-white", "shadow-md", "shadow-brand-500/20");
+                laserLabel.classList.add("bg-white", "dark:bg-zinc-900", "text-gray-500", "dark:text-zinc-400", "hover:bg-gray-50", "dark:hover:bg-zinc-800");
+            }
+        }
+
+        // Função principal de atualização de visibilidade
+        function updateVisibility() {
+            const technology = radioLaser.checked ? "laser" : "jato_tinta";
+            const isColor = checkboxColor.checked;
+            const isPlotter = checkboxPlotter.checked;
+            const multipleSizes = checkboxMultipleSizes.checked;
+
+            // 1. Toner (Level & Full): Visível apenas para Laser
+            if (technology === "laser") {
+                groupToner.classList.remove("hidden-field");
+            } else {
+                groupToner.classList.add("hidden-field");
+            }
+
+            // 2. Caixa de Manutenção: Visível apenas para Jato de Tinta
+            if (technology === "jato_tinta") {
+                groupCaixa.classList.remove("hidden-field");
+            } else {
+                groupCaixa.classList.add("hidden-field");
+            }
+
+            // 3. Tinta Preta (BK): Visível se Jato de Tinta OR (Laser AND Colorida)
+            if (technology === "jato_tinta" || (technology === "laser" && isColor)) {
+                groupPreta.classList.remove("hidden-field");
+            } else {
+                groupPreta.classList.add("hidden-field");
+            }
+
+            // 4. Tintas Coloridas (C, M, Y): Visíveis se Colorida = True (ambas as tecnologias)
+            if (isColor) {
+                groupColoridas.classList.remove("hidden-field");
+            } else {
+                groupColoridas.classList.add("hidden-field");
+            }
+
+            // 5. Mapeamento de Contadores e Múltiplos Tamanhos
+            if (isPlotter) {
+                groupContadorMono.classList.add("hidden-field");
+                groupContadorColor.classList.add("hidden-field");
+                groupMultipleSizesContainer.classList.add("hidden-field");
+            } else {
+                groupMultipleSizesContainer.classList.remove("hidden-field");
+
+                if (multipleSizes) {
+                    groupContadorMono.classList.remove("hidden-field");
+                    groupContadorColor.classList.remove("hidden-field");
+                } else {
+                    // Sem múltiplos tamanhos: só o contador total fica visível (oculta A4 e A3)
+                    groupContadorMono.classList.add("hidden-field");
+                    groupContadorColor.classList.add("hidden-field");
+                }
+            }
+        }
+
+        // Inferir tecnologia inicial com base nos dados do formulário ao carregar (Modo Edição)
+        const tonerLevelValue = document.getElementById("id_oid_toner_level").value.trim();
+        const tonerFullValue = document.getElementById("id_oid_toner_full").value.trim();
+        const caixaValue = document.getElementById("id_oid_caixa_manutencao").value.trim();
+
+        if (tonerLevelValue || tonerFullValue) {
+            radioLaser.checked = true;
+        } else if (caixaValue) {
+            radioInkjet.checked = true;
+        } else {
+            // Se vazio, adota Laser como padrão
+            radioLaser.checked = true;
+        }
+
+        // Event Listeners
+        radioLaser.addEventListener("change", function () {
+            updateRadioStyles();
+            updateVisibility();
+        });
+
+        radioInkjet.addEventListener("change", function () {
+            updateRadioStyles();
+            updateVisibility();
+        });
+
+        checkboxColor.addEventListener("change", updateVisibility);
+        checkboxPlotter.addEventListener("change", updateVisibility);
+        checkboxMultipleSizes.addEventListener("change", updateVisibility);
+
+        // Estilização extra para checkbox do Django virar toggle switch
+        const checkboxes = [checkboxColor, checkboxPlotter, checkboxMultipleSizes];
+        checkboxes.forEach(function (checkbox) {
+            if (checkbox) {
+                checkbox.className = "rounded text-brand-600 focus:ring-brand-500 h-5 w-5 border-gray-300 dark:border-zinc-700 bg-white dark:bg-zinc-950 cursor-pointer transition-all";
+            }
+        });
+
+        // Inicialização
+        updateRadioStyles();
+        updateVisibility();
+    });
+</script>
+{% endblock %}
