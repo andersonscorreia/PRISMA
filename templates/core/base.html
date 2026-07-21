@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR" class="light">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,7 +8,8 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <!-- Tailwind CSS via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -40,59 +42,76 @@
         * {
             transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease;
         }
+
         a {
             text-decoration: none !important;
         }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 dark:bg-zinc-950 dark:text-zinc-100 font-sans min-h-screen pb-12 flex flex-col justify-between">
+
+<body
+    class="bg-gray-50 text-gray-800 dark:bg-zinc-950 dark:text-zinc-100 font-sans min-h-screen pb-12 flex flex-col justify-between">
     <div>
         <!-- Navbar -->
-        <header class="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-40 shadow-sm">
+        <header
+            class="bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-40 shadow-sm">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                 <div class="flex items-center gap-6">
                     <a href="{% url 'dashboard_geral' %}" class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-md shadow-brand-500/20">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-brand-500 flex items-center justify-center shadow-md shadow-brand-500/20">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                             </svg>
                         </div>
                         <div>
                             <h1 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                                PRISMA <span class="text-brand-500 text-xs font-semibold px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300">Gtrigueiro</span>
+                                PRISMA <span
+                                    class="text-brand-500 text-xs font-semibold px-2 py-0.5 rounded bg-brand-100 dark:bg-brand-900/40 dark:text-brand-300">Gtrigueiro</span>
                             </h1>
                         </div>
                     </a>
-                    
+
                     <!-- Navigation Links -->
                     {% if request.user.is_authenticated %}
                     <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' or request.user.groups.all.0.name == 'Técnico' or request.user.groups.all.1.name == 'Técnico' %}
-                            <a href="{% url 'dashboard_geral' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Dashboard</a>
-                            <a href="{% url 'inventario_dashboard' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Controle de Inventário</a>
-                            <a href="{% url 'snmp_dashboard' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Métricas das Impressoras</a>
+                        <a href="{% url 'dashboard_geral' %}"
+                            class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Dashboard</a>
+                        <a href="{% url 'inventario_dashboard' %}"
+                            class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Controle
+                            de Inventário</a>
+                        <a href="{% url 'snmp_dashboard' %}"
+                            class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Métricas
+                            das Impressoras</a>
                         {% endif %}
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' %}
-                            <div class="h-4 w-[1px] bg-gray-200 dark:bg-zinc-800"></div>
-                            <a href="{% url 'gerenciamento' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400 font-bold" title="Painel de Gerenciamento do Admin">Gerenciamento</a>
+                        <div class="h-4 w-[1px] bg-gray-200 dark:bg-zinc-800"></div>
+                        <a href="{% url 'gerenciamento' %}"
+                            class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400 font-bold"
+                            title="Painel de Gerenciamento do Admin">Gerenciamento</a>
                         {% endif %}
                     </nav>
                     {% endif %}
                 </div>
-                
+
                 <div class="flex items-center gap-4">
                     {% if request.user.is_authenticated %}
-                        <div class="flex items-center gap-4 text-sm">
-                            <span class="text-gray-500 dark:text-zinc-400 hidden sm:inline">Olá, <strong class="text-gray-900 dark:text-white">{{ request.user.username }}</strong></span>
-                            <a href="{% url 'logout' %}" class="text-brand-500 hover:text-brand-600 font-bold flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                </svg>
-                                Sair
-                            </a>
-                        </div>
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="text-gray-500 dark:text-zinc-400 hidden sm:inline">Olá, <strong
+                                class="text-gray-900 dark:text-white">{{ request.user.username }}</strong></span>
+                        <a href="{% url 'logout' %}"
+                            class="text-brand-500 hover:text-brand-600 font-bold flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Sair
+                        </a>
+                    </div>
                     {% else %}
-                        <a href="{% url 'login' %}" class="text-brand-500 hover:text-brand-600 font-bold">Entrar</a>
+                    <a href="{% url 'login' %}" class="text-brand-500 hover:text-brand-600 font-bold">Entrar</a>
                     {% endif %}
                 </div>
             </div>
@@ -107,14 +126,19 @@
 
     <!-- Floating theme toggle button -->
     <div class="fixed bottom-6 right-6 z-50">
-        <button id="theme-toggle" class="p-4 bg-brand-500 text-white rounded-full shadow-lg hover:bg-brand-600 active:scale-95 transform transition-all duration-150 focus:outline-none flex items-center justify-center group" title="Alternar Modo Escuro / Claro">
+        <button id="theme-toggle"
+            class="p-4 bg-brand-500 text-white rounded-full shadow-lg hover:bg-brand-600 active:scale-95 transform transition-all duration-150 focus:outline-none flex items-center justify-center group"
+            title="Alternar Modo Escuro / Claro">
             <!-- Sun icon -->
-            <svg id="theme-toggle-light-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+            <svg id="theme-toggle-light-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor"
+                viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m12.728 0l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
             </svg>
             <!-- Moon icon -->
             <svg id="theme-toggle-dark-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
             </svg>
         </button>
     </div>
@@ -136,7 +160,7 @@
             themeToggleDarkIcon.classList.remove('hidden');
         }
 
-        themeToggleBtn.addEventListener('click', function() {
+        themeToggleBtn.addEventListener('click', function () {
             // toggle icons inside button
             themeToggleLightIcon.classList.toggle('hidden');
             themeToggleDarkIcon.classList.toggle('hidden');
@@ -162,4 +186,5 @@
         });
     </script>
 </body>
+
 </html>
