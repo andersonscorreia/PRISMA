@@ -87,7 +87,7 @@ else:
             'ENGINE': 'django.db.backends.mysql',
             'NAME': os.environ.get('DB_NAME', 'prisma_db'),
             'USER': os.environ.get('DB_USER', 'prisma_admin'),
-            'PASSWORD': os.environ.get('DB_PASSWORD', 'Gtrig!4590'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', ''),
             'HOST': os.environ.get('DB_HOST', 'mysql_db'),
             'PORT': os.environ.get('DB_PORT', '3306'),
         }
