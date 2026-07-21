@@ -1,5 +1,8 @@
 from django.contrib import admin
-from core.models import Cliente, Brand, PrinterOID, Impressora, APIToken, ColetaImpressora
+from core.models import (
+    Cliente, Brand, PrinterOID, Impressora, APIToken, ColetaImpressora, ComputadorAgente,
+    HistoricoMovimentacao, HistoricoContador
+)
 
 @admin.register(Cliente)
 class ClienteAdmin(admin.ModelAdmin):
@@ -27,11 +30,46 @@ class PrinterOIDAdmin(admin.ModelAdmin):
     search_fields = ('name', 'brand__name')
 
 
+@admin.register(ComputadorAgente)
+class ComputadorAgenteAdmin(admin.ModelAdmin):
+    list_display = ('id', 'identificador_unico', 'cliente')
+    search_fields = ('identificador_unico', 'cliente__nome')
+
+
 @admin.register(Impressora)
 class ImpressoraAdmin(admin.ModelAdmin):
-    list_display = ('serial_number', 'nome_comercial', 'modelo', 'brand', 'oid_profile', 'ip_address', 'cliente', 'status_sistema')
-    list_filter = ('brand', 'oid_profile', 'status_sistema', 'cliente')
-    search_fields = ('serial_number', 'nome_comercial', 'modelo', 'ip_address')
+    list_display = (
+        'serial_number', 'modelo', 'status', 'cliente', 
+        'ultimo_contador_pb', 'ultimo_contador_color', 'updated_at'
+    )
+    list_filter = ('status', 'brand', 'cliente', 'ativa')
+    search_fields = ('serial_number', 'modelo', 'name')
+
+
+@admin.register(HistoricoMovimentacao)
+class HistoricoMovimentacaoAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'impressora', 'status', 'cliente', 'data_movimentacao', 'observacao'
+    )
+    list_filter = ('status', 'data_movimentacao', 'cliente')
+    search_fields = ('impressora__serial_number', 'observacao')
+
+
+@admin.register(HistoricoContador)
+class HistoricoContadorAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'impressora', 'data_coleta', 'origem', 
+        'contador_pb', 'contador_color', 'timestamp'
+    )
+    list_filter = ('origem', 'data_coleta')
+    search_fields = ('impressora__serial_number',)
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        from core.services import tem_colunas_subcontadores
+        if not tem_colunas_subcontadores():
+            return qs.only('id', 'impressora', 'data_coleta', 'origem', 'contador_pb', 'contador_color', 'timestamp')
+        return qs
 
 
 @admin.register(APIToken)

@@ -5,9 +5,9 @@
 {% block content %}
 <!-- Page Header -->
 <div class="mb-8">
-    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Controle de Inventário & Logística</h2>
-    <p class="text-sm text-gray-500 dark:text-zinc-400">Rastreabilidade do estado físico de todos os ativos do sistema
-    </p>
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Controle de Inventário</h2>
+
+
 </div>
 
 <!-- Messages (Alerts) -->
@@ -34,29 +34,29 @@
 {% endif %}
 
 <!-- Indicator Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <!-- Card 1: Alocadas -->
-    <div onclick="filterColumns('locadas')"
-        class="bg-gradient-to-br from-blue-50 to-blue-100/55 dark:from-blue-950/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+    <!-- Card 1: Total de Impressoras -->
+    <div onclick="filterColumns('all')"
+        class="bg-gradient-to-br from-purple-50 to-purple-100/55 dark:from-purple-950/20 dark:to-purple-900/10 border border-purple-200 dark:border-purple-800/40 rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
         <div>
-            <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
-                Alocadas em Clientes
+            <span class="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider block">
+                Total de Impressoras
             </span>
-            <span class="text-3xl font-extrabold text-blue-900 dark:text-blue-100 mt-2 block">
-                {{ total_alocadas }}
+            <span class="text-3xl font-extrabold text-purple-900 dark:text-purple-100 mt-2 block">
+                {{ total_impressoras }}
             </span>
         </div>
-        <div class="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="p-3 bg-purple-500/10 text-purple-600 dark:text-purple-400 rounded-xl">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
         </div>
     </div>
 
     <!-- Card 2: Estoque -->
     <div onclick="filterColumns('estoque')"
-        class="bg-gradient-to-br from-emerald-50 to-emerald-100/55 dark:from-emerald-950/20 dark:to-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        class="bg-gradient-to-br from-emerald-50 to-emerald-100/55 dark:from-emerald-950/20 dark:to-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
         <div>
             <span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
                 Disponíveis em Estoque
@@ -66,16 +66,36 @@
             </span>
         </div>
         <div class="p-3 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-xl">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
             </svg>
         </div>
     </div>
 
-    <!-- Card 3: Manutenção -->
+
+    <!-- Card 3: Alocadas -->
+    <div onclick="filterColumns('locadas')"
+        class="bg-gradient-to-br from-blue-50 to-blue-100/55 dark:from-blue-950/20 dark:to-blue-900/10 border border-blue-200 dark:border-blue-800/40 rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        <div>
+            <span class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">
+                Alocadas em Clientes
+            </span>
+            <span class="text-3xl font-extrabold text-blue-900 dark:text-blue-100 mt-2 block">
+                {{ total_alocadas }}
+            </span>
+        </div>
+        <div class="p-3 bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+        </div>
+    </div>
+
+    <!-- Card 4: Manutenção -->
     <div onclick="filterColumns('manutencao')"
-        class="bg-gradient-to-br from-amber-50 to-amber-100/55 dark:from-amber-950/20 dark:to-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-6 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
+        class="bg-gradient-to-br from-amber-50 to-amber-100/55 dark:from-amber-950/20 dark:to-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-5 shadow-sm flex items-center justify-between cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all">
         <div>
             <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">
                 Em Manutenção
@@ -85,7 +105,7 @@
             </span>
         </div>
         <div class="p-3 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -117,51 +137,87 @@
 </div>
 
 <!-- Column Filters Pill Bar -->
-<div id="col-filters-bar" class="mb-6 flex flex-wrap items-center gap-2 text-xs max-w-4xl mx-auto">
-    <span class="text-gray-500 font-semibold dark:text-zinc-400">Filtrar por Status:</span>
+<div id="col-filters-bar" class="mb-4 flex flex-wrap items-center gap-2 text-xs max-w-4xl mx-auto">
+    <span class="text-gray-500 font-semibold dark:text-zinc-400">Filtrar Status:</span>
     <button id="btn-filter-all" onclick="filterColumns('all')"
         class="px-3 py-1.5 rounded-xl font-bold bg-brand-500 text-white shadow-sm transition-all focus:outline-none border border-transparent">
-        Mostrar Todas
+        Mostrar Todas ({{ impressoras|length }})
     </button>
     <button id="btn-filter-estoque" onclick="filterColumns('estoque')"
         class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-        Disponíveis ({{ estoque|length }})
+        Disponíveis ({{ total_estoque }})
     </button>
     <button id="btn-filter-locadas" onclick="filterColumns('locadas')"
         class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-        Alocadas ({{ alocadas|length }})
+        Alocadas ({{ total_alocadas }})
     </button>
     <button id="btn-filter-manutencao" onclick="filterColumns('manutencao')"
         class="px-3 py-1.5 rounded-xl font-bold bg-white dark:bg-zinc-900 text-gray-700 dark:text-zinc-300 border border-gray-200 dark:border-zinc-800 hover:bg-gray-50 dark:hover:bg-zinc-800/50 shadow-sm transition-all focus:outline-none flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-        Manutenção ({{ manutencao|length }})
+        Manutenção ({{ total_manutencao }})
     </button>
+</div>
+
+<!-- Search Input Below Filters -->
+<div class="mb-6 max-w-4xl mx-auto">
+    <div class="relative w-full">
+        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+        </div>
+        <input type="text" id="printer-search-input" onkeyup="applyPrinterFilters()"
+            placeholder="Pesquisar impressora por Número de Série (N/S), Modelo, Marca ou Cliente..."
+            class="block w-full pl-10 pr-4 py-2.5 text-xs bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 placeholder-gray-400 shadow-sm">
+    </div>
 </div>
 
 <!-- CONTAINER 1: VISÃO DE STATUS (LISTA COMPLETA FULL-WIDTH) -->
 <div id="view-status-container" class="space-y-3 max-w-4xl mx-auto">
     {% for p in impressoras %}
     <div class="p-5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 printer-row transition-all hover:border-gray-300 dark:hover:border-zinc-700"
-        data-status="{{ p.status|lower }}">
+        data-status="{{ p.status|lower }}"
+        data-search="{{ p.serial_number|lower }} {{ p.brand.name|lower }} {{ p.modelo|lower }} {{ p.name|lower }} {{ p.cliente.nome|lower }}">
         <div class="flex flex-col sm:flex-row sm:items-center gap-4 flex-grow">
             <!-- Status tag -->
             <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase shrink-0 text-center w-28
-                {% if p.status == 'ESTOQUE' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
-                {% elif p.status == 'ALOCADA' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
+                {% if p.status == 'ESTOQUE' or p.status == 'Disponível' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                {% elif p.status == 'CLIENTE' or p.status == 'ALOCADA' or p.status == 'Locada' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
                 {% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-500 dark:text-amber-400{% endif %}">
                 {{ p.get_status_display }}
             </span>
 
             <div class="space-y-1">
                 <h4 class="font-bold text-gray-950 dark:text-white text-base">
-                    {{ p.brand.name }} {{ p.name|default:p.modelo|default:"Genérica" }}
+                    <a href="{% url 'ciclo_vida_ativo' p.serial_number %}"
+                        class="hover:text-brand-500 transition-colors inline-flex items-center gap-1.5">
+                        {{ p.brand.name|default:"Genérica" }} {{ p.name|default:p.modelo|default:"" }}
+                        <svg class="w-4 h-4 text-gray-400 hover:text-brand-500 shrink-0" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                    </a>
                 </h4>
                 <div
                     class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-450 dark:text-zinc-400 font-medium">
-                    <span class="font-mono text-gray-400 dark:text-zinc-500">S/N: {{ p.serial_number }}</span>
-                    {% if p.status == 'ALOCADA' %}
+                    <a href="{% url 'ciclo_vida_ativo' p.serial_number %}"
+                        class="font-mono text-gray-400 hover:text-brand-500 dark:text-zinc-500">S/N: {{ p.serial_number }}</a>
+                    {% if p.tem_subcontadores %}
+                    <span class="text-gray-600 dark:text-zinc-300 font-semibold flex items-center gap-2">
+                        <span>A4: <strong class="text-brand-500 font-mono">{{ p.ultima_coleta.contador_a4|default:"0" }}</strong></span>
+                        <span>A3: <strong class="text-indigo-500 font-mono">{{ p.ultima_coleta.contador_a3|default:"0" }}</strong></span>
+                        <span>A5: <strong class="text-emerald-500 font-mono">{{ p.ultima_coleta.contador_a5|default:"0" }}</strong></span>
+                    </span>
+                    {% else %}
+                    <span class="text-gray-600 dark:text-zinc-300 font-semibold">Total: <strong
+                            class="text-brand-500 font-mono">{{ p.ultimo_contador_pb|default:p.contador_inicial }}</strong></span>
+                    {% endif %}
+                    {% if p.status == 'ALOCADA' or p.status == 'CLIENTE' or p.status == 'Locada' %}
+                    {% if p.cliente %}
                     <span class="text-blue-600 dark:text-blue-400 font-semibold flex items-center gap-1">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -169,7 +225,8 @@
                         </svg>
                         Cliente: {{ p.cliente.nome }}
                     </span>
-                    {% elif p.status == 'MANUTENÇÃO' %}
+                    {% endif %}
+                    {% elif p.status == 'MANUTENÇÃO' or p.status == 'MANUTENCAO' %}
                     {% with last_rep=p.manutencoes.last %}
                     {% if last_rep %}
                     <span class="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1">
@@ -188,39 +245,61 @@
 
         <!-- Action buttons -->
         <div
-            class="flex items-center gap-3 shrink-0 self-end md:self-auto border-t md:border-t-0 border-gray-50 dark:border-zinc-800/45 pt-3 md:pt-0 w-full md:w-auto justify-end">
-            {% if p.status == 'ESTOQUE' %}
+            class="flex items-center gap-2 shrink-0 self-end md:self-auto border-t md:border-t-0 border-gray-50 dark:border-zinc-800/45 pt-3 md:pt-0 w-full md:w-auto justify-end">
+            <a href="{% url 'ciclo_vida_ativo' p.serial_number %}"
+                class="px-4 py-2 h-9 text-xs font-bold text-gray-700 dark:text-zinc-200 bg-gray-50 dark:bg-zinc-800/80 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-700/60 rounded-xl transition-all inline-flex items-center justify-center gap-1.5 min-w-[105px] shadow-sm">
+                <svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Histórico
+            </a>
+            {% if p.status == 'ESTOQUE' or p.status == 'Disponível' %}
             <button
                 onclick="openMaintenanceModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
-                class="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-bold rounded-xl transition-colors">
+                class="px-4 py-2 h-9 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all inline-flex items-center justify-center gap-1.5 min-w-[105px] shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
                 Manutenção
             </button>
             <button
                 onclick="openAllocationModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
-                class="px-3.5 py-1.5 text-xs bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                class="px-4 py-2 h-9 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-all inline-flex items-center justify-center min-w-[105px] shadow-sm active:scale-[0.98]">
                 Alocar
             </button>
-            {% elif p.status == 'ALOCADA' %}
+            {% elif p.status == 'ALOCADA' or p.status == 'CLIENTE' or p.status == 'Locada' %}
             <button
                 onclick="openMaintenanceModal('{{ p.serial_number }}', '{{ p.brand.name }} {{ p.name|default:p.modelo }}')"
-                class="px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 font-bold rounded-xl transition-colors">
+                class="px-4 py-2 h-9 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all inline-flex items-center justify-center gap-1.5 min-w-[105px] shadow-sm">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
                 Manutenção
             </button>
-            <form method="POST" action="{% url 'inventario_liberar' %}">
+            <form method="POST" action="{% url 'inventario_liberar' %}"
+                onsubmit="promptFormSubmit(event, this, 'Mover para Estoque', 'Tem certeza de que deseja mover a impressora {{ p.serial_number }} de volta ao Estoque Disponível?')">
                 {% csrf_token %}
                 <input type="hidden" name="impressora_id" value="{{ p.serial_number }}">
                 <button type="submit"
-                    class="px-3.5 py-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
-                    Mover para o Estoque
+                    class="px-4 py-2 h-9 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-all inline-flex items-center justify-center min-w-[105px] shadow-sm active:scale-[0.98]">
+                    Estoque
                 </button>
             </form>
-            {% elif p.status == 'MANUTENÇÃO' %}
-            <form method="POST" action="{% url 'inventario_liberar' %}">
+            {% elif p.status == 'MANUTENÇÃO' or p.status == 'MANUTENCAO' %}
+            <form method="POST" action="{% url 'inventario_liberar' %}"
+                onsubmit="promptFormSubmit(event, this, 'Liberar Manutenção', 'Tem certeza de que deseja concluir a manutenção e liberar a impressora {{ p.serial_number }} ao Estoque?')">
                 {% csrf_token %}
                 <input type="hidden" name="impressora_id" value="{{ p.serial_number }}">
                 <button type="submit"
-                    class="px-3.5 py-1.5 text-xs bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98]">
-                    Liberar p/ Estoque
+                    class="px-4 py-2 h-9 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-all inline-flex items-center justify-center min-w-[105px] shadow-sm active:scale-[0.98]">
+                    Estoque
                 </button>
             </form>
             {% endif %}
@@ -371,6 +450,15 @@
                 </select>
             </div>
 
+            <div>
+                <label for="alloc_ip_address"
+                    class="block text-[10px] font-bold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
+                    Endereço IP no Cliente
+                </label>
+                <input type="text" name="ip_address" id="alloc_ip_address" required placeholder="Ex: 192.168.1.50"
+                    class="block w-full px-3 py-2 text-xs bg-white dark:bg-zinc-950 border border-gray-300 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100">
+            </div>
+
             <div class="pt-4 flex items-center justify-end gap-3 border-t border-gray-100 dark:border-zinc-800">
                 <button type="button" onclick="closeAllocationModal()"
                     class="px-4 py-2 border border-gray-300 dark:border-zinc-700 text-gray-700 dark:text-zinc-300 rounded-xl text-xs font-bold hover:bg-gray-50 dark:hover:bg-zinc-800 transition-colors">
@@ -386,7 +474,7 @@
 </div>
 
 <!-- 2. Modal: Envio para Manutenção -->
-<div id="maintenance-modal"
+<div id="maintenance-modal" onclick="if(event.target === this) closeMaintenanceModal()"
     class="fixed inset-0 z-50 hidden bg-zinc-950/60 backdrop-blur-sm items-center justify-center p-4">
     <div id="maintenance-container"
         class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 w-full max-w-md rounded-2xl shadow-xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
@@ -394,8 +482,8 @@
             class="px-6 py-4 border-b border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-gray-50/50 dark:bg-zinc-900/50">
             <h3 class="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider">Enviar para Assistência
             </h3>
-            <button onclick="closeMaintenanceModal()"
-                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400">
+            <button type="button" onclick="closeMaintenanceModal()"
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-zinc-800 text-gray-400 hover:text-gray-600 dark:hover:text-zinc-200 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -426,7 +514,7 @@
                     Cancelar
                 </button>
                 <button type="submit"
-                    class="px-4 py-2 bg-amber-50 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-colors">
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-sm active:scale-[0.98]">
                     Confirmar Envio
                 </button>
             </div>
@@ -478,25 +566,20 @@
         localStorage.setItem('inventario-view', viewName);
     }
 
+    let currentStatusFilter = 'all';
+
+    function rowMatchesFilter(rowStatus, filterName) {
+        if (!filterName || filterName === 'all') return true;
+        if (filterName === 'estoque') return rowStatus === 'estoque' || rowStatus === 'disponível';
+        if (filterName === 'locadas') return rowStatus === 'cliente' || rowStatus === 'alocada' || rowStatus === 'locada';
+        if (filterName === 'manutencao') return rowStatus === 'manutencao' || rowStatus === 'manutenção';
+        return false;
+    }
+
     function filterColumns(statusName) {
         switchView('status');
-
-        // Define status mapping
-        const mapping = {
-            'estoque': 'estoque',
-            'locadas': 'alocada',
-            'manutencao': 'manutenção'
-        };
-
-        const rows = document.querySelectorAll('.printer-row');
-        rows.forEach(row => {
-            const rowStatus = row.getAttribute('data-status');
-            if (statusName === 'all' || rowStatus === mapping[statusName]) {
-                row.classList.remove('hidden');
-            } else {
-                row.classList.add('hidden');
-            }
-        });
+        currentStatusFilter = statusName;
+        applyPrinterFilters();
 
         // Update button styling
         const filterNames = ['estoque', 'locadas', 'manutencao'];
@@ -526,6 +609,26 @@
         }
 
         localStorage.setItem('inventario-col-filter', statusName);
+    }
+
+    function applyPrinterFilters() {
+        const searchInput = document.getElementById('printer-search-input');
+        const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+        const rows = document.querySelectorAll('.printer-row');
+        rows.forEach(row => {
+            const rowStatus = (row.getAttribute('data-status') || '').toLowerCase();
+            const searchData = (row.getAttribute('data-search') || '').toLowerCase();
+
+            const statusMatches = rowMatchesFilter(rowStatus, currentStatusFilter);
+            const queryMatches = !query || searchData.includes(query);
+
+            if (statusMatches && queryMatches) {
+                row.classList.remove('hidden');
+            } else {
+                row.classList.add('hidden');
+            }
+        });
     }
 
     // Restore last active view and filter on reload
@@ -596,7 +699,8 @@
         maintContainer.classList.add('scale-100', 'opacity-100');
     }
 
-    function closeModal() {
+    function closeMaintenanceModal() {
+        if (!maintContainer || !maintBackdrop) return;
         maintContainer.classList.remove('scale-100', 'opacity-100');
         maintContainer.classList.add('scale-95', 'opacity-0');
         setTimeout(() => {
@@ -604,5 +708,76 @@
             maintBackdrop.classList.add('hidden');
         }, 150);
     }
+    const closeModal = closeMaintenanceModal;
+
+    let pendingFormToSubmit = null;
+
+    function promptFormSubmit(event, formEl, title, message) {
+        event.preventDefault();
+        pendingFormToSubmit = formEl;
+
+        const modal = document.getElementById('prisma-confirm-modal');
+        if (!modal) {
+            formEl.submit();
+            return;
+        }
+
+        document.getElementById('confirm-modal-title').textContent = title || "Confirmar Alteração";
+        document.getElementById('confirm-modal-message').textContent = message || "Tem certeza de que deseja prosseguir?";
+
+        document.getElementById('confirm-modal-submit-btn').onclick = function () {
+            if (pendingFormToSubmit) {
+                pendingFormToSubmit.submit();
+            }
+        };
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('prisma-confirm-modal');
+        if (modal) modal.classList.add('hidden');
+        pendingFormToSubmit = null;
+    }
 </script>
+
+<!-- PRISMA Custom Dark Confirmation Modal for Status Changes -->
+<div id="prisma-confirm-modal"
+    class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div
+        class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl transform transition-all">
+
+        <div class="flex items-center gap-3.5 mb-4">
+            <div id="confirm-modal-icon-bg"
+                class="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0 border border-brand-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <h3 id="confirm-modal-title" class="text-base font-bold text-gray-900 dark:text-white">Confirmar
+                    Alteração</h3>
+                <p id="confirm-modal-subtitle" class="text-xs text-gray-400">Esta ação altera a localização/status do
+                    equipamento</p>
+            </div>
+        </div>
+
+        <p id="confirm-modal-message"
+            class="text-xs text-gray-700 dark:text-zinc-300 mb-6 bg-gray-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800/80 leading-relaxed font-medium">
+            Tem certeza de que deseja prosseguir com esta alteração?
+        </p>
+
+        <div class="flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeConfirmModal()"
+                class="px-4 py-2 text-xs font-bold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 rounded-xl transition-colors">
+                Cancelar
+            </button>
+            <button type="button" id="confirm-modal-submit-btn"
+                class="px-4 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                Confirmar
+            </button>
+        </div>
+    </div>
+</div>
 {% endblock %}

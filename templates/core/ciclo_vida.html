@@ -3,14 +3,231 @@
 {% block title %}Ciclo de Vida do Ativo - PRISMA{% endblock %}
 
 {% block content %}
+<!-- Flatpickr Custom Dark Theme -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/dark.css">
+
+<style>
+    /* PRISMA custom dark theme for Flatpickr */
+    .flatpickr-calendar {
+        background: #18181b !important;
+        /* zinc-900 */
+        border: 1px solid #27272a !important;
+        /* zinc-800 */
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.95) !important;
+        border-radius: 1rem !important;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
+        padding: 12px !important;
+        width: 320px !important;
+        box-sizing: border-box !important;
+        overflow: hidden !important;
+    }
+
+    .flatpickr-calendar.arrowTop:before,
+    .flatpickr-calendar.arrowTop:after {
+        border-bottom-color: #27272a !important;
+    }
+
+    .flatpickr-calendar.arrowBottom:before,
+    .flatpickr-calendar.arrowBottom:after {
+        border-top-color: #27272a !important;
+    }
+
+    /* Estilização e alinhamento das setas de navegação de mês (Flatpickr) */
+    .flatpickr-prev-month,
+    .flatpickr-next-month {
+        color: #a1a1aa !important;
+        fill: #a1a1aa !important;
+        padding: 4px !important;
+        height: 30px !important;
+        width: 30px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border-radius: 0.5rem !important;
+        top: 10px !important;
+        z-index: 10 !important;
+        transition: all 0.15s ease !important;
+    }
+
+    .flatpickr-prev-month:hover,
+    .flatpickr-next-month:hover {
+        color: #ffffff !important;
+        fill: #ffffff !important;
+        background: #27272a !important;
+    }
+
+    .flatpickr-prev-month svg,
+    .flatpickr-next-month svg {
+        width: 14px !important;
+        height: 14px !important;
+        stroke: currentColor !important;
+        fill: currentColor !important;
+    }
+
+    /* Remove greyish-blue strip background from Flatpickr header */
+    .flatpickr-months,
+    .flatpickr-months .flatpickr-month,
+    .flatpickr-current-month {
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+    }
+
+    /* Hide days of adjacent months completely (opacity 0) so ONLY current month days are visible */
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        cursor: default !important;
+    }
+
+    /* Hide up/down arrows on year field completely */
+    .flatpickr-current-month .numInputWrapper span.arrowUp,
+    .flatpickr-current-month .numInputWrapper span.arrowDown {
+        display: none !important;
+    }
+
+    /* Month Dropdown & Year Input styling - Centered and Same Height */
+    .flatpickr-current-month {
+        font-size: 13px !important;
+        font-weight: 700 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+        color: #ffffff !important;
+        width: 100% !important;
+        padding: 0 !important;
+        position: relative !important;
+        left: 0 !important;
+    }
+
+    .flatpickr-current-month .flatpickr-monthDropdown-months,
+    .flatpickr-current-month .numInputWrapper {
+        height: 32px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        background: #27272a !important;
+        /* zinc-800 */
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        border-radius: 0.6rem !important;
+        padding: 0 12px !important;
+        border: 1px solid #3f3f46 !important;
+        height: 32px !important;
+        line-height: 30px !important;
+        box-sizing: border-box !important;
+        cursor: pointer !important;
+        outline: none !important;
+        margin-right: 10px !important;
+    }
+
+    .flatpickr-current-month .numInputWrapper input.cur-year {
+        background: #27272a !important;
+        /* zinc-800 */
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        border-radius: 0.6rem !important;
+        padding: 0 8px !important;
+        border: 1px solid #3f3f46 !important;
+        height: 32px !important;
+        line-height: 30px !important;
+        width: 70px !important;
+        text-align: center !important;
+        box-sizing: border-box !important;
+        cursor: text !important;
+        outline: none !important;
+    }
+
+    .flatpickr-current-month .numInputWrapper input.cur-year:focus {
+        background: #18181b !important;
+        border-color: #e53e3e !important;
+    }
+
+    /* Weekday Strip Layout */
+    .flatpickr-weekdays {
+        background: transparent !important;
+        border-bottom: 1px solid #27272a !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 8px !important;
+        width: 100% !important;
+    }
+
+    .flatpickr-weekdaycontainer {
+        background: transparent !important;
+        width: 100% !important;
+        display: flex !important;
+        justify-content: space-around !important;
+    }
+
+    span.flatpickr-weekday {
+        background: transparent !important;
+        color: #71717a !important;
+        font-weight: 700 !important;
+        font-size: 11px !important;
+        text-transform: uppercase !important;
+        flex: 1 !important;
+        text-align: center !important;
+    }
+
+    /* Days Grid Layout */
+    .flatpickr-days {
+        width: 100% !important;
+    }
+
+    .dayContainer {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        justify-content: space-between !important;
+    }
+
+    .flatpickr-day {
+        color: #f4f4f5 !important;
+        border-radius: 0.6rem !important;
+        border: 1px solid transparent !important;
+        font-weight: 500 !important;
+        max-width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        margin: 1px 0 !important;
+    }
+
+    .flatpickr-day.today {
+        border-color: #e53e3e !important;
+        color: #e53e3e !important;
+        font-weight: 700 !important;
+    }
+
+    .flatpickr-day.selected {
+        background: #e53e3e !important;
+        border-color: #e53e3e !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        box-shadow: 0 4px 12px rgba(229, 62, 62, 0.4) !important;
+    }
+
+    .flatpickr-day:hover {
+        background: #27272a !important;
+    }
+</style>
+
 <!-- Back button & Page Header -->
 <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-        <a href="{% url 'dashboard_geral' %}" class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 mb-2">
+        <a href="{% url 'inventario_dashboard' %}"
+            class="inline-flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 mb-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Voltar ao Dashboard
+            Voltar ao Controle de Inventário
         </a>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Ciclo de Vida do Ativo</h2>
         <p class="text-sm text-gray-500 dark:text-zinc-400">Rastreabilidade ponta a ponta e histórico operacional da impressora</p>
@@ -18,135 +235,431 @@
 </div>
 
 <!-- Printer Information Card -->
-<section class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm mb-8">
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<section class="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-6 items-center">
         <div>
             <span class="text-gray-400 text-xs block uppercase font-medium">Equipamento</span>
-            <h3 class="text-lg font-bold text-gray-900 dark:text-white mt-1">{{ impressora.marca }} {{ impressora.modelo }}</h3>
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white mt-1">{{ impressora.brand.name|default:"Genérica" }} {{ impressora.modelo|default:impressora.name|default:"" }}</h3>
         </div>
         <div>
             <span class="text-gray-400 text-xs block uppercase font-medium">Número de Série</span>
-            <span class="font-mono font-bold text-gray-800 dark:text-zinc-200 mt-1 block">{{ impressora.n_s }}</span>
+            <span class="font-mono font-bold text-gray-800 dark:text-zinc-200 mt-1 block">{{ impressora.serial_number }}</span>
         </div>
         <div>
             <span class="text-gray-400 text-xs block uppercase font-medium">Endereço IP</span>
-            <span class="font-mono font-medium text-gray-800 dark:text-zinc-300 mt-1 block">{{ impressora.ip|default:"Sem IP associado" }}</span>
+            <span class="font-mono font-medium text-gray-800 dark:text-zinc-300 mt-1 block">{{ impressora.ip_address|default:"Sem IP associado" }}</span>
+        </div>
+        <div>
+            <span class="text-gray-400 text-xs block uppercase font-medium">Últimos Contadores</span>
+            {% if impressora.tem_subcontadores %}
+            <div class="flex items-center gap-2.5 text-xs mt-1">
+                <span class="font-semibold text-gray-700 dark:text-zinc-300">A4: <span class="font-mono text-brand-500 font-bold">{{ impressora.ultima_coleta.contador_a4|default:"0" }}</span></span>
+                <span class="font-semibold text-gray-700 dark:text-zinc-300">A3: <span class="font-mono text-indigo-500 font-bold">{{ impressora.ultima_coleta.contador_a3|default:"0" }}</span></span>
+                <span class="font-semibold text-gray-700 dark:text-zinc-300">A5: <span class="font-mono text-emerald-500 font-bold">{{ impressora.ultima_coleta.contador_a5|default:"0" }}</span></span>
+            </div>
+            {% else %}
+            <span class="text-sm font-semibold text-gray-800 dark:text-zinc-200 mt-1 block">Total: <span class="font-mono text-brand-500 font-bold">{{ impressora.ultimo_contador_pb|default:impressora.contador_inicial }}</span></span>
+            {% endif %}
         </div>
         <div class="md:text-right">
             <span class="text-gray-400 text-xs block uppercase font-medium">Status Atual</span>
             <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold mt-1.5
-                {% if impressora.status == 'Disponível' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
-                {% elif impressora.status == 'Locada' %}bg-brand-50 dark:bg-brand-950/40 text-brand-500
+                {% if impressora.status == 'ESTOQUE' or impressora.status == 'Disponível' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                {% elif impressora.status == 'CLIENTE' or impressora.status == 'ALOCADA' or impressora.status == 'Locada' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
                 {% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-500{% endif %}">
                 <span class="w-1.5 h-1.5 rounded-full 
-                    {% if impressora.status == 'Disponível' %}bg-emerald-500
-                    {% elif impressora.status == 'Locada' %}bg-brand-500
+                    {% if impressora.status == 'ESTOQUE' or impressora.status == 'Disponível' %}bg-emerald-500
+                    {% elif impressora.status == 'CLIENTE' or impressora.status == 'ALOCADA' or impressora.status == 'Locada' %}bg-blue-500
                     {% else %}bg-amber-500{% endif %}">
                 </span>
-                {{ impressora.status }}
+                {{ impressora.get_status_display }}
             </span>
         </div>
     </div>
 </section>
 
-<!-- Timeline Section -->
-<h3 class="text-lg font-bold mb-6 text-gray-900 dark:text-white">
-    Histórico de Ciclo de Vida
-</h3>
+<!-- Custom Date Range Filter Card -->
+<section class="bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm mb-8">
+    <form method="GET" action="" id="date-filter-form"
+        class="flex flex-col md:flex-row md:items-center justify-between gap-4">
 
-{% if not historicos %}
-<div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-12 text-center">
-    <svg class="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-    </svg>
-    <p class="text-gray-500 dark:text-zinc-400">Nenhum histórico operacional registrado para este ativo.</p>
-</div>
-{% else %}
-<div class="relative border-l-2 border-gray-200 dark:border-zinc-800 ml-4 md:ml-6 space-y-8 pb-4">
-    {% for hist in historicos %}
-    <div class="relative pl-6 md:pl-8">
-        <!-- Dot Indicator on Timeline -->
-        <span class="absolute -left-[11px] top-1.5 flex h-5 w-5 items-center justify-center rounded-full border-2 bg-white dark:bg-zinc-950 shadow-sm
-            {% if hist.em_assistencia %}border-amber-500
-            {% elif not hist.data_saida %}border-brand-500
-            {% else %}border-gray-300 dark:border-zinc-700{% endif %}">
-            <span class="h-2 w-2 rounded-full 
-                {% if hist.em_assistencia %}bg-amber-500
-                {% elif not hist.data_saida %}bg-brand-500 animate-pulse
-                {% else %}bg-gray-300 dark:bg-zinc-700{% endif %}">
-            </span>
-        </span>
-
-        <!-- Timeline Card -->
-        <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-5 shadow-sm hover:border-gray-300 dark:hover:border-zinc-700 transition-colors">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                <div>
-                    {% if hist.em_assistencia %}
-                        <h4 class="font-bold text-amber-600 dark:text-amber-500 text-base flex items-center gap-1.5">
-                            <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                            Manutenção / Assistência Técnica
-                        </h4>
-                    {% else %}
-                        <h4 class="font-bold text-gray-900 dark:text-white text-base">
-                            Alocação: 
-                            {% if hist.cliente %}
-                                <a href="{% url 'historico_cliente' hist.cliente.id %}" class="text-brand-500 hover:underline">
-                                    {{ hist.cliente.nome }}
-                                </a>
-                            {% else %}
-                                <span class="text-gray-500 dark:text-zinc-400 font-medium">Equipamento em Estoque</span>
-                            {% endif %}
-                        </h4>
-                    {% endif %}
-                </div>
-
-                <!-- Date Range Badge -->
-                <div class="text-right">
-                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold
-                        {% if not hist.data_saida %}
-                            {% if hist.em_assistencia %}bg-amber-50 dark:bg-amber-950/40 text-amber-500
-                            {% else %}bg-brand-50 dark:bg-brand-950/40 text-brand-500{% endif %}
-                        {% else %}
-                            bg-gray-50 dark:bg-zinc-800 text-gray-600 dark:text-zinc-400
-                        {% endif %}">
-                        {{ hist.data_entrada|date:"d/m/Y" }} - 
-                        {% if hist.data_saida %}
-                            {{ hist.data_saida|date:"d/m/Y" }}
-                        {% else %}
-                            Em Andamento
-                        {% endif %}
-                    </span>
-                </div>
-            </div>
-
-            <!-- Notes -->
-            <div class="text-sm text-gray-600 dark:text-zinc-300 flex items-start gap-2">
-                <svg class="w-5 h-5 text-gray-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+        <div class="flex items-center gap-3">
+            <div
+                class="w-9 h-9 rounded-xl bg-brand-50 dark:bg-brand-950/40 text-brand-500 flex items-center justify-center shrink-0 border border-brand-100 dark:border-brand-900/40">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                <div>
-                    <p class="font-medium text-xs text-gray-400">Observações Operacionais</p>
-                    <p class="mt-0.5">{{ hist.observacoes|default:"Nenhuma observação cadastrada no período." }}</p>
+            </div>
+            <div>
+                <h4 class="text-sm font-bold text-gray-900 dark:text-white">Filtrar Histórico por Período</h4>
+                <p class="text-[11px] text-gray-400">Selecione o intervalo de datas para consulta rápida</p>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+            <!-- Data Inicial -->
+            <div class="relative">
+                <label for="data_inicio" class="block text-[10px] font-bold text-gray-400 uppercase mb-1">
+                    Data Inicial
+                </label>
+                <div class="relative">
+                    <input type="text" id="data_inicio" name="data_inicio" value="{{ data_inicio }}"
+                        placeholder="DD/MM/AAAA"
+                        class="block w-40 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
                 </div>
             </div>
 
-            <!-- Action footer (if allocated to a client) -->
-            {% if hist.cliente %}
-            <div class="mt-4 pt-3 border-t border-gray-100 dark:border-zinc-800 flex justify-end">
-                <a href="{% url 'historico_cliente' hist.cliente.id %}" class="inline-flex items-center gap-1 text-xs font-semibold text-brand-500 hover:text-brand-600 transition-colors">
-                    Ver Histórico Completo do Cliente
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            <span class="text-gray-400 self-end pb-2.5 hidden sm:inline-flex items-center">
+                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+            </span>
+
+            <!-- Data Final -->
+            <div class="relative">
+                <label for="data_fim" class="block text-[10px] font-bold text-gray-400 uppercase mb-1">
+                    Data Final
+                </label>
+                <div class="relative">
+                    <input type="text" id="data_fim" name="data_fim" value="{{ data_fim }}" placeholder="DD/MM/AAAA"
+                        class="block w-40 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
+                </div>
+            </div>
+
+            <!-- Botões de Ação -->
+            <div class="flex items-center gap-2 self-end pt-1 sm:pt-0">
+                <button type="submit"
+                    class="px-4 py-2 text-xs bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] inline-flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
+                    Aplicar
+                </button>
+                <a href="{% url 'ciclo_vida_ativo' impressora.serial_number %}"
+                    class="px-3.5 py-2 text-xs text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 font-bold rounded-xl transition-colors inline-flex items-center gap-1.5"
+                    title="Limpar filtro de datas e mostrar todo o histórico">
+                    <svg class="w-3.5 h-3.5 text-gray-400 hover:text-brand-500" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Limpar Filtro
                 </a>
             </div>
-            {% endif %}
         </div>
+
+    </form>
+</section>
+
+<!-- Tabs / Sections for Movimentacoes and Contadores -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+
+    <!-- Column 1: Histórico de Movimentações de Status -->
+    <div>
+        <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            </svg>
+            Histórico de Movimentações
+        </h3>
+        <p class="text-xs text-gray-500 dark:text-zinc-400 mb-4">Clique em uma movimentação para filtrar os contadores do período.</p>
+
+
+        {% if not historicos_movimentacao %}
+        <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 text-center">
+            <p class="text-sm text-gray-500 dark:text-zinc-400">Nenhuma movimentação de status no período selecionado.
+            </p>
+        </div>
+        {% else %}
+        <div class="relative border-l-2 border-gray-200 dark:border-zinc-800 ml-4 space-y-6 pb-4">
+            {% for mov in historicos_movimentacao %}
+            <div class="relative pl-6 mov-card cursor-pointer" data-mov-idx="{{ forloop.counter0 }}" onclick="filtrarContadoresPorMovimentacao({{ forloop.counter0 }}, this)">
+                <!-- Dot Indicator -->
+                <span class="absolute -left-[9px] top-1.5 flex h-4 w-4 items-center justify-center rounded-full border-2 bg-white dark:bg-zinc-950 shadow-sm
+                    {% if mov.status == 'ESTOQUE' or mov.status == 'Disponível' %}border-emerald-500
+                    {% elif mov.status == 'CLIENTE' or mov.status == 'ALOCADA' or mov.status == 'Locada' %}border-blue-500
+                    {% else %}border-amber-500{% endif %}">
+                    <span class="h-1.5 w-1.5 rounded-full 
+                        {% if mov.status == 'ESTOQUE' or mov.status == 'Disponível' %}bg-emerald-500
+                        {% elif mov.status == 'CLIENTE' or mov.status == 'ALOCADA' or mov.status == 'Locada' %}bg-blue-500
+                        {% else %}bg-amber-500{% endif %}">
+                    </span>
+                </span>
+
+                <div id="mov-card-{{ forloop.counter0 }}"
+                    class="mov-card-inner bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 p-4 shadow-sm transition-all">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <span class="font-bold text-sm text-gray-900 dark:text-white">
+                            {% if mov.status == 'ESTOQUE' or mov.status == 'Disponível' %}
+                            Moveu para o <span class="text-emerald-600 dark:text-emerald-400">Estoque</span>
+                            {% elif mov.status == 'CLIENTE' or mov.status == 'ALOCADA' or mov.status == 'Locada' %}
+                            Alocada no Cliente:
+                            {% if mov.cliente %}
+                            <span class="text-blue-400 font-bold">{{ mov.cliente.nome }}</span>
+                            {% else %}
+                            Cliente não especificado
+                            {% endif %}
+                            {% else %}
+                            Enviada para a <span class="text-amber-500">Manutenção</span>
+                            {% endif %}
+                        </span>
+
+                        <span class="text-xs text-gray-400 font-mono">
+                            {{ mov.data_movimentacao|date:"d/m/Y H:i" }}
+                        </span>
+                    </div>
+
+                    {% if mov.observacao %}
+                    <p class="text-xs text-gray-600 dark:text-zinc-400 bg-gray-50 dark:bg-zinc-950 p-2 rounded-lg mt-2">
+                        <span class="font-medium">Obs:</span> {{ mov.observacao }}
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-    {% endfor %}
+
+    <!-- Column 2: Histórico de Contadores -->
+    <div>
+        <h3 class="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            Histórico de Contadores (Diários & Movimentações)
+        </h3>
+
+        {% if not historicos_contador %}
+        <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-8 text-center">
+            <p class="text-sm text-gray-500 dark:text-zinc-400">Nenhum contador registrado no período selecionado.</p>
+        </div>
+        {% else %}
+        <div
+            class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl overflow-hidden shadow-sm">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs text-gray-500 dark:text-zinc-400">
+                    <thead
+                        class="bg-gray-50 dark:bg-zinc-950 text-gray-700 dark:text-zinc-300 font-semibold border-b border-gray-200 dark:border-zinc-800">
+                        <tr>
+                            <th class="p-3">Data / Hora</th>
+                            <th class="p-3">Origem</th>
+                            {% if impressora.tem_subcontadores %}
+                            <th class="p-3 text-right">Contador A4</th>
+                            <th class="p-3 text-right">Contador A3</th>
+                            <th class="p-3 text-right">Contador A5</th>
+                            <th class="p-3 text-right">Contador Geral</th>
+                            {% else %}
+                            <th class="p-3 text-right">Contador PB / Total</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-zinc-800 font-mono">
+                        {% for hc in historicos_contador %}
+                        <tr class="counter-row hover:bg-gray-50/50 dark:hover:bg-zinc-800/40 transition-colors" data-ts="{{ hc.timestamp|date:'Y-m-d' }}T{{ hc.timestamp|date:'H:i:s' }}">
+                            <td class="p-3 font-medium text-gray-800 dark:text-zinc-200">
+                                {{ hc.data_coleta|date:"d/m/Y" }}
+                                <span class="text-[10px] text-gray-400 block">{{ hc.timestamp|date:"H:i:s" }}</span>
+                            </td>
+                            <td class="p-3">
+                                {% if hc.origem == 'MOVIMENTACAO' %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-500 uppercase">
+                                    Movimentação
+                                </span>
+                                {% else %}
+                                <span
+                                    class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-500 uppercase">
+                                    Diário
+                                </span>
+                                {% endif %}
+                            </td>
+                            {% if impressora.tem_subcontadores %}
+                            <td class="p-3 text-right font-bold text-amber-600 dark:text-amber-400">
+                                {{ hc.get_a4 }}
+                            </td>
+                            <td class="p-3 text-right font-bold text-indigo-500">
+                                {{ hc.get_a3 }}
+                            </td>
+                            <td class="p-3 text-right font-bold text-emerald-500">
+                                {{ hc.get_a5 }}
+                            </td>
+                            <td class="p-3 text-right font-bold text-gray-900 dark:text-white">
+                                {{ hc.get_geral }}
+                            </td>
+                            {% else %}
+                            <td class="p-3 text-right font-bold text-gray-900 dark:text-white">
+                                {{ hc.contador_pb }}
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
 </div>
-{% endif %}
+
+<!-- Flatpickr JS & Portuguese Locale -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/pt.js"></script>
+
+<script>
+    const MOV_INTERVALS = {{ mov_intervals_json|safe }};
+    let activeMov = null;
+
+    function filtrarContadoresPorMovimentacao(idx, cardEl) {
+        // Toggle: clicar novamente no mesmo card limpa o filtro
+        if (activeMov === idx) {
+            activeMov = null;
+            document.querySelectorAll('.mov-card-inner').forEach(c => {
+                c.classList.remove('ring-2', 'ring-brand-500', 'border-brand-500/60', 'bg-brand-50/10', 'dark:bg-brand-950/20');
+            });
+            document.querySelectorAll('.counter-row').forEach(r => r.classList.remove('hidden'));
+            return;
+        }
+
+        activeMov = idx;
+        const interval = MOV_INTERVALS[idx];
+        if (!interval) return;
+
+        const inicio = new Date(interval.inicio);
+        const fim = new Date(interval.fim);
+
+        // Destacar card clicado
+        document.querySelectorAll('.mov-card-inner').forEach((c, i) => {
+            if (i === idx) {
+                c.classList.add('ring-2', 'ring-brand-500', 'border-brand-500/60', 'bg-brand-50/10', 'dark:bg-brand-950/20');
+            } else {
+                c.classList.remove('ring-2', 'ring-brand-500', 'border-brand-500/60', 'bg-brand-50/10', 'dark:bg-brand-950/20');
+            }
+        });
+
+        // Filtrar linhas de contador
+        let algumVisivel = false;
+        document.querySelectorAll('.counter-row').forEach(row => {
+            const tsStr = row.getAttribute('data-ts');
+            if (!tsStr) { row.classList.add('hidden'); return; }
+            const ts = new Date(tsStr);
+            if (ts >= inicio && ts <= fim) {
+                row.classList.remove('hidden');
+                algumVisivel = true;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        // Se nenhum contador encontrado, mostrar mensagem temporária
+        const tbody = document.querySelector('.counter-row')?.closest('tbody');
+        const emptyMsg = document.getElementById('counter-empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+        if (!algumVisivel && tbody) {
+            const tr = document.createElement('tr');
+            tr.id = 'counter-empty-msg';
+            tr.innerHTML = '<td colspan="4" class="p-6 text-center text-xs text-gray-400 italic">Nenhum contador registrado nesta movimentação.</td>';
+            tbody.appendChild(tr);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        flatpickr.localize(flatpickr.l10ns.pt);
+
+        const minDateStr = "{{ data_cadastro_str }}";
+
+        function attachPrismaMonthSelector(fp) {
+            const cal = fp.calendarContainer;
+            if (!cal || cal.querySelector('.prisma-month-popover')) return;
+
+            const popover = document.createElement('div');
+            popover.className = 'prisma-month-popover hidden absolute top-12 left-3 right-3 z-50 bg-zinc-900 border border-zinc-800 rounded-xl p-3 shadow-2xl';
+
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+            let html = '<div class="grid grid-cols-3 gap-1.5">';
+            months.forEach((m, idx) => {
+                html += `<button type="button" data-month="${idx}" class="p-btn text-xs font-bold py-2 rounded-lg transition-all text-center text-zinc-300 hover:bg-zinc-800 hover:text-white">${m.substring(0, 3)}</button>`;
+            });
+            html += '</div>';
+            popover.innerHTML = html;
+            cal.appendChild(popover);
+
+            popover.querySelectorAll('.p-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const m = parseInt(btn.getAttribute('data-month'));
+                    fp.changeMonth(m, true);
+                    popover.classList.add('hidden');
+                });
+            });
+
+            const monthSelect = cal.querySelector('.flatpickr-monthDropdown-months');
+            if (monthSelect) {
+                monthSelect.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const active = fp.currentMonth;
+                    popover.querySelectorAll('.p-btn').forEach((b, idx) => {
+                        if (idx === active) {
+                            b.className = 'p-btn text-xs font-bold py-2 rounded-lg text-center bg-brand-500 text-white shadow-sm';
+                        } else {
+                            b.className = 'p-btn text-xs font-bold py-2 rounded-lg text-center text-zinc-300 bg-zinc-800/60 hover:bg-zinc-800 hover:text-white';
+                        }
+                    });
+
+                    popover.classList.toggle('hidden');
+                });
+            }
+
+            const yearInput = cal.querySelector('input.cur-year');
+            if (yearInput) {
+                yearInput.addEventListener('focus', function () {
+                    this.select();
+                });
+            }
+
+            document.addEventListener('click', (e) => {
+                if (!popover.contains(e.target) && monthSelect && !monthSelect.contains(e.target)) {
+                    popover.classList.add('hidden');
+                }
+            });
+        }
+
+        const fpInicio = flatpickr("#data_inicio", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            locale: "pt",
+            minDate: minDateStr,
+            disableMobile: "true",
+            onReady: function (selectedDates, dateStr, instance) {
+                attachPrismaMonthSelector(instance);
+            },
+            onChange: function (selectedDates, dateStr) {
+                if (fpFim) {
+                    fpFim.set('minDate', dateStr || minDateStr);
+                }
+            }
+        });
+
+        const fpFim = flatpickr("#data_fim", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            locale: "pt",
+            minDate: minDateStr,
+            disableMobile: "true",
+            onReady: function (selectedDates, dateStr, instance) {
+                attachPrismaMonthSelector(instance);
+            }
+        });
+    });
+</script>
 {% endblock %}

@@ -26,7 +26,10 @@ def save_printer_metrics(data):
 
     def parse_float(val):
         try:
-            return float(val) if val is not None else None
+            if val is not None:
+                res = float(val)
+                return max(0.0, res)
+            return None
         except (ValueError, TypeError):
             return None
             

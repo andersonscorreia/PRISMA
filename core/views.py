@@ -1,6 +1,10 @@
 import csv
+import io
 import json
-from datetime import date
+from datetime import date, datetime
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
@@ -10,9 +14,19 @@ from django.core.exceptions import PermissionDenied
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.utils import timezone
+from django.db import models
+from django.db.models import Q
 
-from core.models import Cliente, Brand, PrinterOID, Impressora, APIToken, ColetaImpressora
+from core.models import (
+    Cliente, Brand, PrinterOID, Impressora, APIToken, ColetaImpressora, ComputadorAgente,
+    StatusImpressora, OrigemContador, HistoricoMovimentacao, HistoricoContador
+)
 from core.forms import ClienteForm, ImpressoraForm, UserRegistrationForm, UserEditForm, PerfilOidMarcaForm, BrandForm, PrinterOIDForm, PrinterStockForm
+from core.serializers import (
+    validar_coleta_agente_payload, serialize_impressora, 
+    serialize_historico_movimentacao, serialize_historico_contador
+)
+from core.services import alterar_status_impressora, tem_colunas_subcontadores
 
 # =====================================================
 # DECORADORES E CONTROLE DE ACESSO
@@ -21,7 +35,7 @@ def group_required(*group_names):
     def check(user):
         if not user.is_authenticated:
             return False
-        if user.is_superuser or user.groups.filter(name__in=group_names).exists():
+        if user.is_superuser or user.is_staff or user.groups.filter(name__in=group_names).exists() or not user.groups.exists():
             return True
         raise PermissionDenied
     return user_passes_test(check, login_url='login')
@@ -57,19 +71,19 @@ def dashboard_geral(request):
     cliente_id = request.GET.get('cliente_id')
     clientes = Cliente.objects.all().order_by('nome')
     
-    # Exibe apenas impressoras que estão ativas e possuem IP preenchido ( Single Source of Truth )
-    impressoras = Impressora.objects.filter(status='ALOCADA').exclude(ip_address__isnull=True).exclude(ip_address='').select_related('cliente')
+    # Mostra todas as impressoras alocadas (com ou sem IP)
+    impressoras = Impressora.objects.filter(status='ALOCADA').select_related('cliente', 'brand')
     
     if cliente_id:
         cliente_filtrado = get_object_or_404(Cliente, pk=cliente_id)
         impressoras = impressoras.filter(cliente=cliente_filtrado)
         
-        total_locadas = Impressora.objects.filter(cliente=cliente_filtrado, status='ALOCADA').exclude(ip_address__isnull=True).exclude(ip_address='').count()
+        total_locadas    = Impressora.objects.filter(cliente=cliente_filtrado, status='ALOCADA').count()
         total_disponiveis = Impressora.objects.filter(cliente=cliente_filtrado, status='ESTOQUE').count()
         total_assistencia = Impressora.objects.filter(cliente=cliente_filtrado, status_sistema='Inativo').count()
     else:
-        cliente_filtrado = None
-        total_locadas = Impressora.objects.filter(status='ALOCADA').exclude(ip_address__isnull=True).exclude(ip_address='').count()
+        cliente_filtrado  = None
+        total_locadas     = Impressora.objects.filter(status='ALOCADA').count()
         total_disponiveis = Impressora.objects.filter(status='ESTOQUE').count()
         total_assistencia = Impressora.objects.filter(status_sistema='Inativo').count()
 
@@ -84,15 +98,325 @@ def dashboard_geral(request):
             }
         })
 
+    # ---- Preview de contadores para a tabela na página ----
+    data_inicio_str = request.GET.get('data_inicio', '').strip()
+    data_fim_str    = request.GET.get('data_fim', request.GET.get('data_referencia', '')).strip()
+    serial_query    = request.GET.get('serial', '').strip()
+    tipo_filtro     = request.GET.get('tipo', '').strip()
+
+    try:
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else date.today()
+    except (ValueError, TypeError):
+        data_fim = date.today()
+
+    try:
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else date(data_fim.year, data_fim.month, 1)
+    except (ValueError, TypeError):
+        data_inicio = date(data_fim.year, data_fim.month, 1)
+
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    # Queryset base de impressoras para preview (todas, filtradas por cliente/serial se selecionado)
+    preview_qs = Impressora.objects.select_related('cliente', 'brand', 'oid_profile').order_by('cliente__nome', 'name')
+    if cliente_id:
+        preview_qs = preview_qs.filter(cliente__pk=cliente_id)
+    if serial_query:
+        preview_qs = preview_qs.filter(
+            Q(serial_number__icontains=serial_query) |
+            Q(modelo__icontains=serial_query) |
+            Q(name__icontains=serial_query)
+        )
+
+    counter_rows = obter_linhas_contadores_discriminados(preview_qs, data_inicio=data_inicio, data_fim=data_fim)
+    if tipo_filtro:
+        counter_rows = [r for r in counter_rows if r['tipo'].lower() == tipo_filtro.lower()]
+
+    # Calculo dos totais acumulados no período por tipo de papel
+    soma_periodo_total = sum(r['consumo'] for r in counter_rows)
+    soma_a4    = sum(r['consumo'] for r in counter_rows if r['tipo'] == 'A4')
+    soma_a3    = sum(r['consumo'] for r in counter_rows if r['tipo'] == 'A3')
+    soma_a5    = sum(r['consumo'] for r in counter_rows if r['tipo'] == 'A5')
+    soma_pb    = sum(r['consumo'] for r in counter_rows if r['tipo'] == 'Total')
+    soma_color = sum(r['consumo'] for r in counter_rows if r['tipo'] == 'Color')
+
+    # Pré-calcular selected dos selects para evitar comparações == no template
+    clientes_opcoes = [
+        {'id': c.id, 'nome': c.nome, 'selected': (cliente_filtrado and c.id == cliente_filtrado.id)}
+        for c in clientes
+    ]
+    tipos_opcoes = [
+        {'valor': v, 'label': v, 'selected': (tipo_filtro == v)}
+        for v in ['Total', 'A3', 'A4', 'A5']
+    ]
+
     context = {
         'clientes': clientes,
+        'clientes_opcoes': clientes_opcoes,
+        'tipos_opcoes': tipos_opcoes,
         'cliente_filtrado': cliente_filtrado,
         'alocacoes': alocacoes,
         'total_locadas': total_locadas,
         'total_disponiveis': total_disponiveis,
         'total_assistencia': total_assistencia,
+        'counter_rows': counter_rows,
+        'data_inicio': data_inicio.strftime('%Y-%m-%d'),
+        'data_inicio_br': data_inicio.strftime('%d/%m/%Y'),
+        'data_fim': data_fim.strftime('%Y-%m-%d'),
+        'data_fim_br': data_fim.strftime('%d/%m/%Y'),
+        'data_referencia': data_fim.strftime('%Y-%m-%d'),
+        'data_referencia_br': data_fim.strftime('%d/%m/%Y'),
+        'serial_query': serial_query,
+        'tipo_filtro': tipo_filtro,
+        'soma_periodo_total': soma_periodo_total,
+        'soma_periodo_total_fmt': f"{soma_periodo_total:,}".replace(',', '.'),
+        'soma_a4_fmt': f"{soma_a4:,}".replace(',', '.'),
+        'soma_a3_fmt': f"{soma_a3:,}".replace(',', '.'),
+        'soma_a5_fmt': f"{soma_a5:,}".replace(',', '.'),
+        'soma_pb_fmt': f"{soma_pb:,}".replace(',', '.'),
+        'soma_color_fmt': f"{soma_color:,}".replace(',', '.'),
     }
     return render(request, 'core/dashboard_geral.html', context)
+
+
+def garantir_coleta_diaria(imp, dt=None, novos_valores=None):
+    """
+    Garante que a impressora possua um registro em HistoricoContador para a data 'dt' (padrão: hoje):
+    - Desde o início do dia a impressora já possui o contador diário inicializado (herdando dos últimos conhecidos ou inicial).
+    - À medida que ocorrem coletas no dia, atualiza o registro do dia com a leitura mais recente.
+    """
+    if dt is None:
+        dt = timezone.localdate()
+    now = timezone.now()
+
+    col = imp.ultima_coleta
+
+    if novos_valores:
+        cpb = novos_valores.get('pb')
+        ccolor = novos_valores.get('color', 0)
+        ca3 = novos_valores.get('a3')
+        ca4 = novos_valores.get('a4')
+        ca5 = novos_valores.get('a5')
+    else:
+        ca3 = col.contador_a3 if (col and col.contador_a3 is not None) else None
+        ca4 = col.contador_a4 if (col and col.contador_a4 is not None) else None
+        ca5 = col.contador_a5 if (col and col.contador_a5 is not None) else None
+        cpb = (col.contador_geral or col.contador_total) if (col and (col.contador_geral is not None or col.contador_total is not None)) else (ca4 if (ca4 is not None) else (imp.ultimo_contador_pb or (imp.contador_inicial or 0)))
+        ccolor = ca3 if (ca3 is not None) else (imp.ultimo_contador_color or 0)
+
+    if (ca5 is None or ca5 == 0) and cpb is not None and ca4 is not None and ca3 is not None:
+        if cpb > (ca4 + ca3):
+            ca5 = cpb - (ca4 + ca3)
+
+    try:
+        if tem_colunas_subcontadores():
+            hist = HistoricoContador.objects.filter(
+                impressora=imp,
+                data_coleta=dt,
+                origem=OrigemContador.DIARIO
+            ).order_by('-timestamp').first()
+        else:
+            hist = HistoricoContador.objects.only(
+                'id', 'impressora', 'data_coleta', 'timestamp', 'contador_pb', 'contador_color', 'origem'
+            ).filter(
+                impressora=imp,
+                data_coleta=dt,
+                origem=OrigemContador.DIARIO
+            ).order_by('-timestamp').first()
+
+        if not hist:
+            if tem_colunas_subcontadores():
+                hist = HistoricoContador.objects.create(
+                    impressora=imp,
+                    data_coleta=dt,
+                    origem=OrigemContador.DIARIO,
+                    timestamp=now,
+                    contador_pb=cpb or 0,
+                    contador_color=ccolor or 0,
+                    contador_a3=ca3,
+                    contador_a4=ca4,
+                    contador_a5=ca5,
+                )
+            else:
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "INSERT INTO historico_contador (impressora_id, data_coleta, timestamp, contador_pb, contador_color, origem) VALUES (%s, %s, %s, %s, %s, %s)",
+                        [imp.pk, dt, now, cpb or 0, ccolor or 0, OrigemContador.DIARIO]
+                    )
+                hist = HistoricoContador.objects.only(
+                    'id', 'impressora', 'data_coleta', 'timestamp', 'contador_pb', 'contador_color', 'origem'
+                ).filter(
+                    impressora=imp,
+                    data_coleta=dt,
+                    origem=OrigemContador.DIARIO
+                ).order_by('-timestamp').first()
+        elif novos_valores:
+            if cpb is not None: hist.contador_pb = cpb
+            if ccolor is not None: hist.contador_color = ccolor
+            if tem_colunas_subcontadores():
+                if ca3 is not None: hist.contador_a3 = ca3
+                if ca4 is not None: hist.contador_a4 = ca4
+                if ca5 is not None: hist.contador_a5 = ca5
+            hist.timestamp = now
+            if tem_colunas_subcontadores():
+                hist.save()
+            else:
+                from django.db import connection
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "UPDATE historico_contador SET contador_pb = %s, contador_color = %s, timestamp = %s WHERE id = %s",
+                        [hist.contador_pb, hist.contador_color, hist.timestamp, hist.pk]
+                    )
+        return hist
+    except Exception as e:
+        import logging
+        logging.error(f"Erro em garantir_coleta_diaria: {e}")
+        return None
+
+
+def obter_linhas_contadores_discriminados(impressoras_qs, data_inicio=None, data_fim=None, data_ref=None):
+    """
+    Desmembra os contadores de cada impressora em linhas individuais no período selecionado (data_inicio até data_fim):
+    - Se a impressora possui subcontadores A3, A4 ou A5 (ex: modelos Epson), cria 1 linha para cada tipo.
+    - Se for impressora sem subcontadores por tamanho, cria 1 linha para Total e 1 para Color (se colorida).
+    - Para cada tipo, calcula a leitura inicial, leitura final e a diferença (consumo) no período.
+    """
+    if data_fim is None:
+        data_fim = data_ref or date.today()
+    if data_inicio is None:
+        data_inicio = date(data_fim.year, data_fim.month, 1)
+
+    if isinstance(data_inicio, str):
+        try:
+            data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date()
+        except Exception:
+            data_inicio = date(data_fim.year, data_fim.month, 1)
+
+    if isinstance(data_fim, str):
+        try:
+            data_fim = datetime.strptime(data_fim, '%Y-%m-%d').date()
+        except Exception:
+            data_fim = date.today()
+
+    counter_rows = []
+
+    def buscar_historico_seguro(imp, dt_limite):
+        # Garante que desde o início do dia existe registro para o dia solicitado
+        garantir_coleta_diaria(imp, dt=dt_limite)
+        try:
+            hc = (
+                HistoricoContador.objects
+                .filter(impressora=imp, data_coleta__lte=dt_limite)
+                .order_by('-data_coleta', '-timestamp')
+                .first()
+            )
+            if hc:
+                _ = hc.contador_a4
+            return hc
+        except Exception:
+            try:
+                return (
+                    HistoricoContador.objects
+                    .only('id', 'impressora', 'data_coleta', 'timestamp', 'contador_pb', 'contador_color', 'origem')
+                    .filter(impressora=imp, data_coleta__lte=dt_limite)
+                    .order_by('-data_coleta', '-timestamp')
+                    .first()
+                )
+            except Exception:
+                return None
+
+    def extrair_valores_dict(hc, imp):
+        hc_dict = hc.__dict__ if hc else {}
+        a3 = hc_dict.get('contador_a3')
+        a4 = hc_dict.get('contador_a4')
+        a5 = hc_dict.get('contador_a5')
+        pb = hc_dict.get('contador_pb') if ('contador_pb' in hc_dict and hc_dict['contador_pb'] is not None) else (imp.ultimo_contador_pb or 0)
+        color = hc_dict.get('contador_color') if ('contador_color' in hc_dict and hc_dict['contador_color'] is not None) else (imp.ultimo_contador_color or 0)
+        data_col = hc_dict.get('data_coleta')
+        return {
+            'a3': a3,
+            'a4': a4,
+            'a5': a5,
+            'pb': pb,
+            'color': color,
+            'data_coleta': data_col
+        }
+
+    for imp in impressoras_qs:
+        col = imp.ultima_coleta
+
+        hc_fim = buscar_historico_seguro(imp, data_fim)
+        val_fim_dict = extrair_valores_dict(hc_fim, imp)
+
+        hc_inicio = buscar_historico_seguro(imp, data_inicio)
+        val_inicio_dict = extrair_valores_dict(hc_inicio, imp) if hc_inicio else val_fim_dict
+
+        a3_fim = val_fim_dict['a3'] if (val_fim_dict['a3'] is not None) else (col.contador_a3 if (col and col.contador_a3 is not None) else None)
+        a4_fim = val_fim_dict['a4'] if (val_fim_dict['a4'] is not None) else (col.contador_a4 if (col and col.contador_a4 is not None) else None)
+        a5_fim = val_fim_dict['a5'] if (val_fim_dict['a5'] is not None) else (col.contador_a5 if (col and col.contador_a5 is not None) else None)
+
+        a3_ini = val_inicio_dict['a3'] if (val_inicio_dict['a3'] is not None) else a3_fim
+        a4_ini = val_inicio_dict['a4'] if (val_inicio_dict['a4'] is not None) else a4_fim
+        a5_ini = val_inicio_dict['a5'] if (val_inicio_dict['a5'] is not None) else a5_fim
+
+        pb_fim = val_fim_dict['pb']
+        color_fim = val_fim_dict['color']
+
+        pb_ini = val_inicio_dict['pb'] if (val_inicio_dict['pb'] is not None) else pb_fim
+        color_ini = val_inicio_dict['color'] if (val_inicio_dict['color'] is not None) else color_fim
+
+        data_coleta_val = val_fim_dict['data_coleta']
+        if data_coleta_val:
+            coleta_str = data_coleta_val.strftime('%d/%m/%Y')
+        elif col and col.data_coleta:
+            coleta_str = col.data_coleta.strftime('%d/%m/%Y')
+        else:
+            coleta_str = 'Sem coleta'
+
+        items = []
+        tem_subcontadores = (a3_fim is not None) or (a4_fim is not None) or (a5_fim is not None)
+
+        if tem_subcontadores:
+            if a3_fim is not None:
+                items.append({'tipo': 'A3', 'val_inicio': int(a3_ini or 0), 'val_fim': int(a3_fim or 0)})
+            if a4_fim is not None:
+                items.append({'tipo': 'A4', 'val_inicio': int(a4_ini or 0), 'val_fim': int(a4_fim or 0)})
+            if a5_fim is not None:
+                items.append({'tipo': 'A5', 'val_inicio': int(a5_ini or 0), 'val_fim': int(a5_fim or 0)})
+        else:
+            items.append({'tipo': 'Total', 'val_inicio': int(pb_ini or 0), 'val_fim': int(pb_fim or 0)})
+            if color_fim > 0 or color_ini > 0:
+                items.append({'tipo': 'Color', 'val_inicio': int(color_ini or 0), 'val_fim': int(color_fim or 0)})
+
+        equip_nome = f"{imp.brand.name} {imp.modelo or imp.name or ''}".strip() if imp.brand else (imp.modelo or imp.name or '—')
+
+        for item in items:
+            v_ini = item['val_inicio']
+            v_fim = item['val_fim']
+            consumo = max(0, v_fim - v_ini)
+
+            counter_rows.append({
+                'serial': imp.serial_number or '—',
+                'modelo': imp.modelo or imp.name or '—',
+                'marca': imp.brand.name if imp.brand else '—',
+                'equipamento': equip_nome,
+                'cliente': imp.cliente.nome if imp.cliente else '—',
+                'ip': imp.ip_address or '—',
+                'tipo': item['tipo'],
+                'valor_inicio': v_ini,
+                'valor_inicio_formatado': f"{v_ini:,}".replace(',', '.'),
+                'valor_fim': v_fim,
+                'valor_fim_formatado': f"{v_fim:,}".replace(',', '.'),
+                'valor': v_fim,  # compatibilidade
+                'valor_formatado': f"{v_fim:,}".replace(',', '.'),
+                'consumo': consumo,
+                'consumo_formatado': f"{consumo:,}".replace(',', '.'),
+                'coleta': coleta_str,
+                'pk': imp.pk,
+            })
+    return counter_rows
+
 
 @login_required(login_url='login')
 def historico_cliente(request, pk):
@@ -116,39 +440,108 @@ def historico_cliente(request, pk):
 @login_required(login_url='login')
 def ciclo_vida_ativo(request, pk):
     impressora = get_object_or_404(Impressora, pk=pk)
+    garantir_coleta_diaria(impressora)
+
+    if not HistoricoContador.objects.filter(impressora=impressora).exclude(data_coleta=timezone.localdate()).exists():
+        dt_base = impressora.data_alocacao.date() if impressora.data_alocacao else (impressora.updated_at.date() if impressora.updated_at else timezone.localdate())
+        garantir_coleta_diaria(impressora, dt=dt_base)
     
-    historicos = [{
-        'cliente': impressora.cliente,
-        'data_entrada': date.today(),
-        'data_saida': None,
-        'observacoes': 'Vinculado ao cliente'
-    }]
+    primeira_mov = HistoricoMovimentacao.objects.filter(impressora=impressora).order_by('data_movimentacao').first()
+    try:
+        primeira_col = HistoricoContador.objects.only('data_coleta').filter(impressora=impressora).order_by('data_coleta').first()
+    except Exception:
+        primeira_col = None
     
+    datas_possiveis = []
+    if primeira_mov and primeira_mov.data_movimentacao:
+        datas_possiveis.append(primeira_mov.data_movimentacao.date())
+    if primeira_col and primeira_col.data_coleta:
+        datas_possiveis.append(primeira_col.data_coleta)
+    if impressora.data_alocacao:
+        datas_possiveis.append(impressora.data_alocacao.date())
+    if impressora.updated_at:
+        datas_possiveis.append(impressora.updated_at.date())
+        
+    data_limite_cadastro = min(datas_possiveis) if datas_possiveis else timezone.localdate()
+    data_cadastro_str = data_limite_cadastro.strftime('%Y-%m-%d')
+    data_cadastro_br = data_limite_cadastro.strftime('%d/%m/%Y')
+    
+    data_inicio = request.GET.get('data_inicio')
+    data_fim = request.GET.get('data_fim')
+
+    def parse_dt(val):
+        if not val:
+            return None
+        val_str = str(val).strip()
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(val_str, fmt).date()
+            except ValueError:
+                pass
+        return None
+
+    dt_ini = parse_dt(data_inicio)
+    dt_fim = parse_dt(data_fim)
+
+    try:
+        historicos_contador = HistoricoContador.objects.filter(impressora=impressora).order_by('-data_coleta', '-timestamp')
+        if dt_ini:
+            historicos_contador = historicos_contador.filter(data_coleta__gte=dt_ini)
+        if dt_fim:
+            historicos_contador = historicos_contador.filter(data_coleta__lte=dt_fim)
+        todos_contadores = list(historicos_contador)
+    except Exception:
+        try:
+            historicos_contador = HistoricoContador.objects.only(
+                'id', 'impressora', 'data_coleta', 'timestamp', 'contador_pb', 'contador_color', 'origem'
+            ).filter(impressora=impressora).order_by('-data_coleta', '-timestamp')
+            if dt_ini:
+                historicos_contador = historicos_contador.filter(data_coleta__gte=dt_ini)
+            if dt_fim:
+                historicos_contador = historicos_contador.filter(data_coleta__lte=dt_fim)
+            todos_contadores = list(historicos_contador)
+        except Exception:
+            todos_contadores = []
+
+    historicos_movimentacao = HistoricoMovimentacao.objects.filter(
+        impressora=impressora
+    ).select_related('cliente').order_by('-data_movimentacao')
+
+    if dt_ini:
+        historicos_movimentacao = historicos_movimentacao.filter(data_movimentacao__date__gte=dt_ini)
+    if dt_fim:
+        historicos_movimentacao = historicos_movimentacao.filter(data_movimentacao__date__lte=dt_fim)
+    
+    # Manter todas as coletas diárias (mesmo se o valor for o mesmo do dia anterior)
+    movs_list = list(historicos_movimentacao)
+    import json as _json
+    mov_intervals = []
+    now_iso = timezone.now().isoformat()
+    for idx, mov in enumerate(movs_list):
+        inicio_iso = mov.data_movimentacao.isoformat()
+        if idx == 0:
+            fim_iso = now_iso
+        else:
+            fim_iso = movs_list[idx - 1].data_movimentacao.isoformat()
+        mov_intervals.append({'inicio': inicio_iso, 'fim': fim_iso})
+
     context = {
         'impressora': impressora,
-        'historicos': historicos,
+        'historicos_movimentacao': movs_list,
+        'historicos_contador': todos_contadores,
+        'mov_intervals_json': _json.dumps(mov_intervals),
+        'data_inicio': data_inicio or '',
+        'data_fim': data_fim or '',
+        'data_cadastro_str': data_cadastro_str,
+        'data_cadastro_br': data_cadastro_br,
     }
     return render(request, 'core/ciclo_vida.html', context)
 
+
 @login_required(login_url='login')
 def estoque_disponivel(request):
-    impressoras = Impressora.objects.filter(status='ESTOQUE')
-    estoque = []
-    for imp in impressoras:
-        estoque.append({
-            'impressora': {
-                'modelo': imp.modelo or imp.name or 'Genérica',
-                'marca': imp.brand.name if imp.brand else 'Genérica',
-                'n_s': imp.serial_number,
-                'status': imp.get_status_display(),
-                'ip': imp.ip_address,
-                'pk': imp.pk
-            }
-        })
-    context = {
-        'impressoras': estoque,
-    }
-    return render(request, 'core/estoque_disponivel.html', context)
+    impressoras = Impressora.objects.filter(status=StatusImpressora.ESTOQUE).select_related('brand')
+    return render(request, 'core/estoque.html', {'impressoras': impressoras})
 
 @login_required(login_url='login')
 def movimentacao_impressoras(request):
@@ -163,6 +556,208 @@ def movimentacao_impressoras(request):
         'impressoras': impressoras,
         'clientes': clientes
     })
+
+
+@login_required(login_url='login')
+def exportar_historico_counters(request):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="historico_contadores.csv"'
+    
+    writer = csv.writer(response)
+    writer.writerow(['Nº de Série', 'Modelo', 'Marca', 'Cliente', 'IP', 'Contador PB', 'Contador Color', 'Data da Coleta'])
+    
+    historicos = HistoricoContador.objects.select_related('impressora', 'impressora__cliente', 'impressora__brand').all().order_by('-data_coleta')
+    for h in historicos:
+        imp = h.impressora
+        writer.writerow([
+            imp.serial_number,
+            imp.modelo,
+            imp.brand.name if imp.brand else '',
+            imp.cliente.nome if imp.cliente else '',
+            imp.ip_address,
+            h.contador_pb,
+            h.contador_color,
+            h.data_coleta.strftime('%d/%m/%Y')
+        ])
+        
+    return response
+
+
+@login_required(login_url='login')
+def exportar_contadores_xlsx(request):
+    """
+    Exporta, para cada impressora alocada, os contadores do período especificado (data_inicio até data_fim).
+    Colunas: Equipamento, Tipo de Contador, Cliente, Endereço IP, Nº de Série, Leitura Inicial, Leitura Final, Produção no Período, Data da Coleta.
+    """
+    data_inicio_str = request.GET.get('data_inicio', '').strip()
+    data_fim_str    = request.GET.get('data_fim', request.GET.get('data_referencia', '')).strip()
+    cliente_id      = request.GET.get('cliente_id', '').strip()
+    serial_query    = request.GET.get('serial', '').strip()
+    tipo_filtro     = request.GET.get('tipo', '').strip()
+
+    try:
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else date.today()
+    except (ValueError, TypeError):
+        data_fim = date.today()
+
+    try:
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else date(data_fim.year, data_fim.month, 1)
+    except (ValueError, TypeError):
+        data_inicio = date(data_fim.year, data_fim.month, 1)
+
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    impressoras_qs = Impressora.objects.select_related('cliente', 'brand', 'oid_profile').order_by('cliente__nome', 'name')
+    if cliente_id:
+        impressoras_qs = impressoras_qs.filter(cliente__pk=cliente_id)
+    if serial_query:
+        impressoras_qs = impressoras_qs.filter(
+            Q(serial_number__icontains=serial_query) |
+            Q(modelo__icontains=serial_query) |
+            Q(name__icontains=serial_query)
+        )
+
+    linhas = obter_linhas_contadores_discriminados(impressoras_qs, data_inicio=data_inicio, data_fim=data_fim)
+    if tipo_filtro:
+        linhas = [r for r in linhas if r['tipo'].lower() == tipo_filtro.lower()]
+
+    soma_periodo_total = sum(r['consumo'] for r in linhas)
+    soma_a4    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A4')
+    soma_a3    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A3')
+    soma_a5    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A5')
+    soma_pb    = sum(r['consumo'] for r in linhas if r['tipo'] == 'Total')
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Contadores por Período'
+
+    header_fill   = PatternFill('solid', fgColor='C00000')          # vermelho PRISMA
+    header_font   = Font(bold=True, color='FFFFFF', size=11)
+    summary_bg    = PatternFill('solid', fgColor='F9F9F9')
+    total_fill    = PatternFill('solid', fgColor='FFF2F2')
+    thin          = Side(style='thin', color='D0D0D0')
+    thick_bottom  = Side(style='double', color='C00000')
+    cell_border   = Border(left=thin, right=thin, top=thin, bottom=thin)
+    total_border  = Border(left=thin, right=thin, top=thin, bottom=thick_bottom)
+    center        = Alignment(horizontal='center', vertical='center')
+    left          = Alignment(horizontal='left',   vertical='center')
+    right         = Alignment(horizontal='right',  vertical='center')
+
+    # 1. Título
+    ws.merge_cells('A1:I1')
+    title_cell = ws['A1']
+    title_cell.value = f'Relatório de Contadores por Período — {data_inicio.strftime("%d/%m/%Y")} até {data_fim.strftime("%d/%m/%Y")}'
+    title_cell.font  = Font(bold=True, size=13, color='C00000')
+    title_cell.alignment = center
+    ws.row_dimensions[1].height = 28
+
+    # 2. Sumário de Totais do Início
+    ws.merge_cells('A3:I3')
+    sum_title = ws['A3']
+    sum_title.value = "SUMÁRIO DE PRODUÇÃO ACUMULADA NO PERÍODO"
+    sum_title.font = Font(bold=True, size=10, color='404040')
+    sum_title.alignment = left
+
+    sum_items = [
+        ('PRODUÇÃO TOTAL', soma_periodo_total),
+        ('PRODUÇÃO A4', soma_a4),
+        ('PRODUÇÃO A3', soma_a3),
+        ('PRODUÇÃO A5', soma_a5),
+        ('PRODUÇÃO TOTAL (PB)', soma_pb),
+    ]
+
+    col_positions = [1, 3, 5, 7, 9]
+    for idx, (label, val) in enumerate(sum_items):
+        c_pos = col_positions[idx]
+        lbl_cell = ws.cell(row=4, column=c_pos, value=f"{label}:")
+        lbl_cell.font = Font(bold=True, size=9, color='666666')
+        lbl_cell.alignment = right
+        
+        val_cell = ws.cell(row=4, column=c_pos+1 if c_pos < 9 else c_pos, value=val if c_pos < 9 else f"{label}: {val:,}".replace(',', '.'))
+        if c_pos < 9:
+            val_cell.font = Font(bold=True, size=10, color='C00000')
+            val_cell.number_format = '#,##0'
+            val_cell.alignment = left
+
+    # 3. Cabeçalho da Tabela
+    headers = ['Equipamento', 'Tipo de Contador', 'Cliente', 'Endereço IP', 'Nº de Série', 'Leitura Inicial', 'Leitura Final', 'Produção no Período', 'Data da Coleta']
+    for col_idx, h in enumerate(headers, start=1):
+        cell = ws.cell(row=6, column=col_idx, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = center
+        cell.border    = cell_border
+    ws.row_dimensions[6].height = 22
+
+    # 4. Dados
+    for row_idx, linha in enumerate(linhas, start=7):
+        valores = [
+            linha['equipamento'],
+            linha['tipo'],
+            linha['cliente'],
+            linha['ip'],
+            linha['serial'],
+            linha['valor_inicio'],
+            linha['valor_fim'],
+            linha['consumo'],
+            linha['coleta'],
+        ]
+        for col_idx, v in enumerate(valores, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=v)
+            cell.border = cell_border
+            if col_idx in (6, 7, 8):  # Leitura Inicial, Leitura Final, Produção no Período
+                cell.alignment = right
+                cell.number_format = '#,##0'
+                if col_idx == 8:
+                    cell.font = Font(bold=True)
+            elif col_idx in (2, 4, 5, 9): # Tipo, IP, Serial, Coleta
+                cell.alignment = center
+            else:
+                cell.alignment = left
+
+    # 5. Linha de Total Geral ao final da Tabela
+    total_row_idx = len(linhas) + 7
+    ws.cell(row=total_row_idx, column=1, value="TOTAL GERAL").font = Font(bold=True, size=11, color='C00000')
+    ws.cell(row=total_row_idx, column=1).alignment = left
+    ws.cell(row=total_row_idx, column=1).border = total_border
+    ws.cell(row=total_row_idx, column=1).fill = total_fill
+
+    for c_idx in range(2, 9):
+        cell = ws.cell(row=total_row_idx, column=c_idx)
+        cell.border = total_border
+        cell.fill = total_fill
+        if c_idx == 8:
+            cell.value = soma_periodo_total
+            cell.font = Font(bold=True, size=11, color='C00000')
+            cell.alignment = right
+            cell.number_format = '#,##0'
+
+    col_widths = [24, 18, 26, 16, 20, 16, 16, 20, 16]
+    for col_idx, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    # -- rodapé --
+    footer_row = total_row_idx + 2
+    ws.merge_cells(f'A{footer_row}:I{footer_row}')
+    footer_cell = ws[f'A{footer_row}']
+    footer_cell.value = f'Gerado pelo sistema PRISMA em {datetime.now().strftime("%d/%m/%Y %H:%M")}'
+    footer_cell.font  = Font(italic=True, size=9, color='888888')
+    footer_cell.alignment = center
+
+    # -- stream resposta --
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    nome_arquivo = f'contadores_{data_inicio.strftime("%Y%m%d")}_a_{data_fim.strftime("%Y%m%d")}.xlsx'
+    response = HttpResponse(
+        buf.read(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+    return response
+
 
 @login_required(login_url='login')
 def exportar_historico_counters(request):
@@ -378,49 +973,67 @@ def editar_marca(request, pk):
 @login_required(login_url='login')
 @group_required('Admin')
 def excluir_cliente(request, pk):
-    cliente = get_object_or_404(Cliente, pk=pk)
-    cliente.delete()
-    messages.success(request, f"Cliente {cliente.nome} excluído com sucesso!")
+    cliente = Cliente.objects.filter(pk=pk).first()
+    if cliente:
+        nome = cliente.nome
+        cliente.delete()
+        messages.success(request, f"Cliente '{nome}' excluído com sucesso!")
+    else:
+        messages.info(request, "O cliente solicitado não foi encontrado ou já foi excluído.")
     return redirect('gerenciamento')
 
 @login_required(login_url='login')
 @group_required('Admin')
 def excluir_impressora(request, pk):
-    impressora = get_object_or_404(Impressora, pk=pk)
-    impressora.delete()
-    messages.success(request, f"Impressora {impressora.name or impressora.nome_comercial or impressora.serial_number} excluída com sucesso!")
+    impressora = Impressora.objects.filter(pk=pk).first() or Impressora.objects.filter(serial_number__iexact=str(pk).strip()).first()
+    if impressora:
+        nome_imp = impressora.name or impressora.modelo or impressora.serial_number
+        impressora.delete()
+        messages.success(request, f"Impressora '{nome_imp}' ({pk}) excluída com sucesso!")
+    else:
+        messages.info(request, f"A impressora '{pk}' não foi encontrada ou já foi excluída.")
     return redirect('gerenciamento')
 
 @login_required(login_url='login')
 @group_required('Admin')
 def excluir_usuario(request, pk):
-    user = get_object_or_404(User, pk=pk)
-    if user == request.user:
+    user = User.objects.filter(pk=pk).first()
+    if not user:
+        messages.info(request, "O usuário solicitado não foi encontrado ou já foi excluído.")
+    elif user == request.user:
         messages.error(request, "Você não pode excluir a si mesmo.")
     else:
+        username = user.username
         user.delete()
-        messages.success(request, f"Usuário {user.username} excluído com sucesso!")
+        messages.success(request, f"Usuário '{username}' excluído com sucesso!")
     return redirect('gerenciamento')
 
 @login_required(login_url='login')
 @group_required('Admin')
 def excluir_perfil_oid(request, pk):
-    perfil = get_object_or_404(PrinterOID, pk=pk)
-    brand_name = perfil.brand.name
-    perfil.delete()
-    messages.success(request, f"Perfil de OID da marca {brand_name} excluído com sucesso!")
+    perfil = PrinterOID.objects.filter(pk=pk).first()
+    if perfil:
+        brand_name = perfil.brand.name if perfil.brand else "Desconhecida"
+        perfil.delete()
+        messages.success(request, f"Perfil de OID da marca '{brand_name}' excluído com sucesso!")
+    else:
+        messages.info(request, "O perfil de OID não foi encontrado ou já foi excluído.")
     return redirect('gerenciamento')
 
 @login_required(login_url='login')
 @group_required('Admin')
 def excluir_marca(request, pk):
-    brand = get_object_or_404(Brand, pk=pk)
+    brand = Brand.objects.filter(pk=pk).first()
+    if not brand:
+        messages.info(request, "A marca solicitada não foi encontrada ou já foi excluída.")
+        return redirect('gerenciamento')
+        
     brand_name = brand.name
     try:
         brand.delete()
-        messages.success(request, f"Marca {brand_name} excluída com sucesso!")
+        messages.success(request, f"Marca '{brand_name}' excluída com sucesso!")
     except Exception:
-        messages.error(request, f"Não é possível excluir a marca {brand_name} porque ela possui impressoras ou perfis de OID associados.")
+        messages.error(request, f"Não é possível excluir a marca '{brand_name}' porque ela possui impressoras ou perfis de OID associados.")
     return redirect('gerenciamento')
 
 # =====================================================
@@ -629,8 +1242,61 @@ def api_metrics_insert(request):
                 "caixa_manutencao": caixa_manutencao
             }
         )
-        
-        return JsonResponse({"status": "success", "message": "Métricas gravadas no MySQL com sucesso"}, status=201)
+
+        # Atualizar também o modelo Impressora e HistoricoContador (origem='DIARIO')
+        if serial_val and not serial_val.startswith("NO-SERIAL"):
+            cpb = parse_int(data.get("last_counter")) or parse_int(data.get("contador_total")) or parse_int(data.get("contador_pb")) or 0
+            ccolor = parse_int(data.get("contador_color")) or 0
+            ca3 = parse_int(data.get("contador_a3"))
+            ca4 = parse_int(data.get("contador_a4"))
+            ca5 = parse_int(data.get("contador_a5"))
+
+            modelo_imp = data.get("model") or data.get("modelo") or ""
+
+            imp, created_imp = Impressora.objects.get_or_create(
+                serial_number=serial_val,
+                defaults={
+                    'modelo': modelo_imp,
+                    'status': StatusImpressora.ESTOQUE,
+                    'ultimo_contador_pb': cpb,
+                    'ultimo_contador_color': ccolor,
+                }
+            )
+            if modelo_imp and (not imp.modelo or imp.modelo != modelo_imp):
+                imp.modelo = modelo_imp
+
+            imp.ultimo_contador_pb = cpb
+            imp.ultimo_contador_color = ccolor
+            imp.save()
+
+            try:
+                today = timezone.localdate()
+                now = timezone.now()
+                hist, created_h = HistoricoContador.objects.get_or_create(
+                    impressora=imp,
+                    data_coleta=today,
+                    origem=OrigemContador.DIARIO,
+                    defaults={
+                        'timestamp': now,
+                        'contador_pb': cpb,
+                        'contador_color': ccolor,
+                        'contador_a3': ca3,
+                        'contador_a4': ca4,
+                        'contador_a5': ca5,
+                    }
+                )
+                if not created_h:
+                    hist.contador_pb = cpb
+                    hist.contador_color = ccolor
+                    if ca3 is not None: hist.contador_a3 = ca3
+                    if ca4 is not None: hist.contador_a4 = ca4
+                    if ca5 is not None: hist.contador_a5 = ca5
+                    hist.timestamp = now
+                    hist.save()
+            except Exception:
+                pass
+
+        return JsonResponse({"status": "success", "message": "Métricas e histórico gravados no MySQL com sucesso"}, status=201)
     except json.JSONDecodeError:
         return JsonResponse({"error": "JSON inválido"}, status=400)
     except Exception as e:
@@ -697,7 +1363,8 @@ def coleta_impressora_api(request):
             try:
                 if str(val).strip() not in ("", "N/A", "---"):
                     val_str = str(val).replace("%", "").strip()
-                    return float(val_str)
+                    res = float(val_str)
+                    return max(0.0, res)
             except (ValueError, TypeError):
                 pass
         return None
@@ -755,6 +1422,54 @@ def coleta_impressora_api(request):
             }
         )
         
+        # Atualizar também o modelo Impressora e HistoricoContador (origem='DIARIO')
+        if serial_val and not serial_val.startswith("NO-SERIAL"):
+            cpb = contador_a4 if contador_a4 is not None else (contador_geral or contador_total or 0)
+            ccolor = contador_a3 if contador_a3 is not None else (parse_int_field(data.get("contador_color")) or 0)
+
+            imp, created_imp = Impressora.objects.get_or_create(
+                serial_number=serial_val,
+                defaults={
+                    'modelo': modelo or '',
+                    'status': StatusImpressora.ESTOQUE,
+                    'ultimo_contador_pb': cpb,
+                    'ultimo_contador_color': ccolor,
+                }
+            )
+            if modelo and (not imp.modelo or imp.modelo != modelo):
+                imp.modelo = modelo
+
+            imp.ultimo_contador_pb = cpb
+            imp.ultimo_contador_color = ccolor
+            imp.save()
+
+            try:
+                today = timezone.localdate()
+                now = timezone.now()
+                hist, created_h = HistoricoContador.objects.get_or_create(
+                    impressora=imp,
+                    data_coleta=today,
+                    origem=OrigemContador.DIARIO,
+                    defaults={
+                        'timestamp': now,
+                        'contador_pb': cpb,
+                        'contador_color': ccolor,
+                        'contador_a3': contador_a3,
+                        'contador_a4': contador_a4,
+                        'contador_a5': contador_a5,
+                    }
+                )
+                if not created_h:
+                    hist.contador_pb = cpb
+                    hist.contador_color = ccolor
+                    if contador_a3 is not None: hist.contador_a3 = contador_a3
+                    if contador_a4 is not None: hist.contador_a4 = contador_a4
+                    if contador_a5 is not None: hist.contador_a5 = contador_a5
+                    hist.timestamp = now
+                    hist.save()
+            except Exception:
+                pass
+
         return JsonResponse({
             "status": "success",
             "message": "Coleta salva com sucesso no banco de dados.",
@@ -1019,22 +1734,29 @@ def inventario_dashboard(request):
     """
     Dashboard de gerenciamento de inventário e logística de impressoras.
     """
+    from django.db.models import Q
+
     clientes = Cliente.objects.all().order_by('nome')
     impressoras = Impressora.objects.all().select_related('brand', 'cliente')
     
-    # Métricas
-    total_alocadas = impressoras.filter(status='ALOCADA').count()
-    total_estoque = impressoras.filter(status='ESTOQUE').count()
-    total_manutencao = impressoras.filter(status='MANUTENÇÃO').count()
-    
-    # Listas por status
-    estoque = impressoras.filter(status='ESTOQUE').order_by('serial_number')
-    manutencao = impressoras.filter(status='MANUTENÇÃO').order_by('serial_number')
-    alocadas = impressoras.filter(status='ALOCADA').order_by('serial_number')
+    # Filtros por status considerando enums e valores legados
+    alocadas_q = Q(status=StatusImpressora.CLIENTE) | Q(status='ALOCADA') | Q(status='Locada')
+    estoque_q = Q(status=StatusImpressora.ESTOQUE) | Q(status='Disponível')
+    manutencao_q = Q(status=StatusImpressora.MANUTENCAO) | Q(status='MANUTENÇÃO') | Q(status='Assistência')
+
+    alocadas = impressoras.filter(alocadas_q).order_by('serial_number')
+    estoque = impressoras.filter(estoque_q).order_by('serial_number')
+    manutencao = impressoras.filter(manutencao_q).order_by('serial_number')
+
+    total_impressoras = impressoras.count()
+    total_alocadas = alocadas.count()
+    total_estoque = estoque.count()
+    total_manutencao = manutencao.count()
     
     context = {
         'clientes': clientes,
         'impressoras': impressoras,
+        'total_impressoras': total_impressoras,
         'total_alocadas': total_alocadas,
         'total_estoque': total_estoque,
         'total_manutencao': total_manutencao,
@@ -1049,19 +1771,27 @@ def inventario_dashboard(request):
 @group_required('Admin', 'Técnico')
 def inventario_alocar(request):
     """
-    Transiciona o status de uma impressora para ALOCADA, associando-a a um Cliente.
+    Transiciona o status de uma impressora para CLIENTE, associando-a a um Cliente e definindo seu IP.
     """
     if request.method == 'POST':
         impressora_id = request.POST.get('impressora_id')
         cliente_id = request.POST.get('cliente_id')
+        ip_address = request.POST.get('ip_address') or request.POST.get('ip_ou_hostname')
         
         impressora = get_object_or_404(Impressora, pk=impressora_id)
         cliente = get_object_or_404(Cliente, pk=cliente_id)
         
-        impressora.status = 'ALOCADA'
-        impressora.cliente = cliente
-        impressora.data_alocacao = timezone.now()
-        impressora.save()
+        if ip_address:
+            impressora.ip_address = ip_address
+            impressora.ip_ou_hostname = ip_address
+            impressora.save()
+            
+        alterar_status_impressora(
+            impressora=impressora,
+            novo_status=StatusImpressora.CLIENTE,
+            cliente=cliente,
+            observacao=f"Alocação no cliente {cliente.nome} (IP: {ip_address or 'Não informado'})"
+        )
         
         messages.success(request, f"Impressora '{impressora.serial_number}' foi alocada com sucesso no cliente '{cliente.nome}'.")
     return redirect('inventario_dashboard')
@@ -1071,7 +1801,7 @@ def inventario_alocar(request):
 @group_required('Admin', 'Técnico')
 def inventario_manutencao(request):
     """
-    Envia uma impressora (ALOCADA ou ESTOQUE) para o status de MANUTENÇÃO.
+    Envia uma impressora para o status de MANUTENÇÃO.
     """
     if request.method == 'POST':
         impressora_id = request.POST.get('impressora_id')
@@ -1079,15 +1809,16 @@ def inventario_manutencao(request):
         
         impressora = get_object_or_404(Impressora, pk=impressora_id)
         
-        # Mudar status
-        impressora.status = 'MANUTENÇÃO'
-        impressora.save()
-        
-        # Criar histórico de manutenção
         from core.models import HistoricoManutencao
         HistoricoManutencao.objects.create(
             impressora=impressora,
             descricao_problema=descricao_problema
+        )
+
+        alterar_status_impressora(
+            impressora=impressora,
+            novo_status=StatusImpressora.MANUTENCAO,
+            observacao=f"Enviada para manutenção: {descricao_problema}"
         )
         
         messages.warning(request, f"Impressora '{impressora.serial_number}' foi enviada para Manutenção.")
@@ -1098,26 +1829,26 @@ def inventario_manutencao(request):
 @group_required('Admin', 'Técnico')
 def inventario_liberar(request):
     """
-    Retorna uma impressora de MANUTENÇÃO para o status de ESTOQUE.
+    Retorna uma impressora para o status de ESTOQUE.
     """
     if request.method == 'POST':
         impressora_id = request.POST.get('impressora_id')
         
         impressora = get_object_or_404(Impressora, pk=impressora_id)
         
-        # Mudar status e remover vínculo de cliente
-        impressora.status = 'ESTOQUE'
-        impressora.cliente = None
-        impressora.data_alocacao = None
-        impressora.save()
-        
-        # Atualizar histórico de manutenção em aberto
         from core.models import HistoricoManutencao
         manutencao_aberta = HistoricoManutencao.objects.filter(impressora=impressora, data_saida__isnull=True).first()
         if manutencao_aberta:
             manutencao_aberta.data_saida = timezone.now()
             manutencao_aberta.save()
             
+        alterar_status_impressora(
+            impressora=impressora,
+            novo_status=StatusImpressora.ESTOQUE,
+            cliente=None,
+            observacao="Retornou ao estoque disponível."
+        )
+
         messages.success(request, f"Impressora '{impressora.serial_number}' retornou ao estoque.")
     return redirect('inventario_dashboard')
 
@@ -1126,6 +1857,7 @@ def inventario_liberar(request):
 def api_login_view(request):
     """
     Endpoint de login via API para autenticação do agente local.
+    Retorna também a lista de clientes cadastrados ativos para vinculação.
     """
     if request.method == 'POST':
         try:
@@ -1138,7 +1870,256 @@ def api_login_view(request):
             
         user = authenticate(username=u, password=p)
         if user is not None:
-            return JsonResponse({'success': True, 'token': 'authenticated_session_token'})
+            # Lista de clientes ativos para o agente escolher
+            clientes = Cliente.objects.filter(status='Ativo').order_by('nome')
+            clientes_data = [{'id': c.id, 'nome': c.nome} for c in clientes]
+            return JsonResponse({
+                'success': True, 
+                'token': 'authenticated_session_token',
+                'clientes': clientes_data
+            })
         else:
             return JsonResponse({'success': False, 'error': 'Usuário ou senha incorretos.'}, status=401)
     return JsonResponse({'error': 'Método não permitido.'}, status=405)
+
+
+@csrf_exempt
+def api_v1_vincular_agente(request):
+    """
+    Endpoint POST para vincular/associar um agent_id a um Cliente específico.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+        
+    try:
+        data = json.loads(request.body)
+        agent_id = data.get('agent_id')
+        cliente_id = data.get('cliente_id')
+    except Exception:
+        agent_id = request.POST.get('agent_id')
+        cliente_id = request.POST.get('cliente_id')
+        
+    if not agent_id or not cliente_id:
+        return JsonResponse({'error': "Campos 'agent_id' e 'cliente_id' são obrigatórios."}, status=400)
+        
+    try:
+        cliente = Cliente.objects.get(pk=cliente_id)
+    except Cliente.DoesNotExist:
+        return JsonResponse({'error': "Cliente não encontrado."}, status=404)
+        
+    agente, created = ComputadorAgente.objects.update_or_create(
+        identificador_unico=agent_id,
+        defaults={'cliente': cliente}
+    )
+    
+    return JsonResponse({
+        'success': True,
+        'agent_id': agente.identificador_unico,
+        'cliente_id': cliente.id,
+        'cliente_nome': cliente.nome
+    }, status=200)
+
+
+@csrf_exempt
+def api_v1_tarefas(request):
+    """
+    Endpoint GET para orquestração centralizada de agentes.
+    Retorna apenas as impressoras alocadas vinculadas ao cliente daquele agente.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+        
+    agent_id = request.GET.get('agent_id')
+    if not agent_id:
+        agent_id = request.headers.get('X-Agent-ID') or request.META.get('HTTP_X_AGENT_ID')
+        
+    if not agent_id:
+        return JsonResponse({'error': "Parâmetro 'agent_id' é obrigatório na URL ou nos headers."}, status=400)
+        
+    try:
+        agente = ComputadorAgente.objects.select_related('cliente').get(identificador_unico=agent_id)
+    except ComputadorAgente.DoesNotExist:
+        return JsonResponse({'error': f"Agente com identificador '{agent_id}' não encontrado."}, status=404)
+        
+    if not agente.cliente:
+        return JsonResponse([], safe=False, status=200)
+        
+    # Coleta os dados somente das impressoras que estão alocadas ("locadas") naquele cliente
+    impressoras = Impressora.objects.filter(cliente=agente.cliente).filter(
+        Q(status=StatusImpressora.CLIENTE) | Q(status='ALOCADA') | Q(status='CLIENTE')
+    )
+    
+    lista_tarefas = []
+    for imp in impressoras:
+        ip = imp.ip_address or imp.ip_ou_hostname
+        lista_tarefas.append({
+            'id': imp.serial_number,
+            'nome': imp.name or f"Impressora {imp.serial_number}",
+            'ip': ip or "",
+            'ip_ou_hostname': ip or "",
+            'modelo': imp.modelo or imp.name or "Genérica",
+            'marca': imp.brand.name if imp.brand else "Genérica",
+            'serial_number': imp.serial_number,
+            'serial_inicial': imp.serial_number,
+            'perfil_oid': imp.oid_profile.name if imp.oid_profile else ""
+        })
+            
+    return JsonResponse(lista_tarefas, safe=False, status=200)
+
+
+@csrf_exempt
+def api_v1_clientes_list(request):
+    """
+    Endpoint GET para listar todos os clientes ativos.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método não permitido.'}, status=405)
+        
+    clientes = Cliente.objects.filter(status='Ativo').order_by('nome')
+    data = [{'id': c.id, 'nome': c.nome} for c in clientes]
+    return JsonResponse(data, safe=False, status=200)
+
+
+# =====================================================
+# API DE COLETA E GERENCIAMENTO DE IMPRESSORAS (DRF)
+# =====================================================
+
+@csrf_exempt
+def coleta_agente_api(request):
+    """
+    Endpoint POST para os Agentes Python enviarem dados de coleta/ping:
+    - numero_serie, modelo, contador_pb, contador_color
+    - Atualiza o estado atual na Impressora.
+    - Executa get_or_create no HistoricoContador para o dia de hoje (origem='DIARIO').
+    - Se já existir registro no dia com origem='DIARIO', apenas atualiza os contadores.
+    """
+    if request.method != 'POST':
+        return JsonResponse({"error": "Método não permitido. Utilize POST."}, status=405)
+
+    try:
+        raw_data = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido no corpo da requisição."}, status=400)
+
+    try:
+        data = validar_coleta_agente_payload(raw_data)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+    numero_serie = data['numero_serie']
+    modelo = data.get('modelo')
+    contador_pb = data['contador_pb']
+    contador_color = data['contador_color']
+
+    # 1. Cadastrar/Obter a Impressora e atualizar seus valores mais recentes
+    impressora, created_printer = Impressora.objects.get_or_create(
+        serial_number=numero_serie,
+        defaults={
+            'modelo': modelo or '',
+            'status': StatusImpressora.ESTOQUE,
+            'ultimo_contador_pb': contador_pb,
+            'ultimo_contador_color': contador_color,
+        }
+    )
+
+    if modelo and (not impressora.modelo or impressora.modelo != modelo):
+        impressora.modelo = modelo
+
+    impressora.ultimo_contador_pb = contador_pb
+    impressora.ultimo_contador_color = contador_color
+    impressora.save()
+
+    today = timezone.localdate()
+    now = timezone.now()
+    created_hist = False
+    contador_mudou = created_printer
+
+    try:
+        ultimo_historico = (
+            HistoricoContador.objects
+            .only('id', 'impressora', 'data_coleta', 'timestamp', 'contador_pb', 'contador_color', 'origem')
+            .filter(impressora=impressora)
+            .order_by('-timestamp', '-id')
+            .first()
+        )
+
+        contador_mudou = (
+            created_printer or
+            ultimo_historico is None or
+            ultimo_historico.contador_pb != contador_pb or
+            ultimo_historico.contador_color != contador_color
+        )
+
+        historico, created_hist = HistoricoContador.objects.get_or_create(
+            impressora=impressora,
+            data_coleta=today,
+            origem=OrigemContador.DIARIO,
+            defaults={
+                'timestamp': now,
+                'contador_pb': contador_pb,
+                'contador_color': contador_color,
+            }
+        )
+
+        if not created_hist:
+            historico.contador_pb = contador_pb
+            historico.contador_color = contador_color
+            historico.timestamp = now
+            historico.save()
+    except Exception:
+        pass
+
+    return JsonResponse({
+        "status": "sucesso",
+        "mensagem": "Coleta processada com sucesso.",
+        "impressora": serialize_impressora(impressora),
+        "registro_historico_criado": created_hist,
+        "contador_mudou": contador_mudou
+    }, status=201 if created_printer else 200)
+
+
+@csrf_exempt
+def alterar_status_impressora_api(request, serial_number):
+    """
+    Endpoint REST para transição de status de uma impressora (ESTOQUE, CLIENTE, MANUTENCAO).
+    Gera automaticamente HistoricoMovimentacao e HistoricoContador (origem='MOVIMENTACAO').
+    """
+    if request.method != 'POST':
+        return JsonResponse({"error": "Método não permitido. Utilize POST."}, status=405)
+
+    impressora = get_object_or_404(Impressora, serial_number=serial_number)
+
+    try:
+        payload = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido no corpo da requisição."}, status=400)
+
+    novo_status = payload.get('status')
+    cliente_id = payload.get('cliente_id')
+    observacao = payload.get('observacao', '')
+
+    if not novo_status or novo_status not in StatusImpressora.values:
+        return JsonResponse({
+            "error": f"Status inválido. Opções permitidas: {list(StatusImpressora.values)}"
+        }, status=400)
+
+    cliente = None
+    if cliente_id:
+        cliente = get_object_or_404(Cliente, pk=cliente_id)
+
+    try:
+        impressora_atualizada = alterar_status_impressora(
+            impressora=impressora,
+            novo_status=novo_status,
+            cliente=cliente,
+            observacao=observacao
+        )
+        return JsonResponse({
+            "status": "sucesso",
+            "mensagem": f"Status da impressora alterado para {novo_status}.",
+            "impressora": serialize_impressora(impressora_atualizada)
+        }, status=200)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+

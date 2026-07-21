@@ -19,7 +19,7 @@
             <p class="text-xs text-gray-500 dark:text-zinc-400 mt-1">{% firstof subtitle "Insira as especificações da impressora para incluí-la no inventário." %}</p>
         </div>
 
-        <form method="POST" class="space-y-5">
+        <form method="POST" id="printer-edit-form" class="space-y-5">
             {% csrf_token %}
             {% for field in form %}
                 <div>
@@ -27,6 +27,9 @@
                         {{ field.label }}
                     </label>
                     {{ field }}
+                    {% if field.help_text %}
+                        <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500 font-medium">{{ field.help_text }}</p>
+                    {% endif %}
                     {% if field.errors %}
                         <p class="mt-1 text-xs text-brand-500 font-semibold">{{ field.errors.0 }}</p>
                     {% endif %}
@@ -45,6 +48,39 @@
     </div>
 </div>
 
+<!-- PRISMA Custom Dark Edit Confirmation Modal -->
+<div id="prisma-edit-confirm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl transform transition-all">
+        
+        <div class="flex items-center gap-3.5 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0 border border-brand-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 class="text-base font-bold text-gray-900 dark:text-white">Confirmar Alterações</h3>
+                <p class="text-xs text-gray-400">Revise as informações modificadas antes de salvar</p>
+            </div>
+        </div>
+
+        <div id="edit-changes-list" class="mb-6">
+            <!-- Dynamic changes list populated by JS -->
+        </div>
+
+        <div class="flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeEditConfirmModal()" 
+                class="px-4 py-2 text-xs font-bold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 rounded-xl transition-colors">
+                Cancelar
+            </button>
+            <button type="button" id="confirm-save-btn" 
+                class="px-4 py-2 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                Confirmar e Salvar
+            </button>
+        </div>
+    </div>
+</div>
+
 <div id="oid-profile-mapping" style="display: none;">
     {% for oid in form.fields.oid_profile.queryset %}
         <span data-oid-id="{{ oid.id }}" data-brand-id="{{ oid.brand.id }}"></span>
@@ -58,44 +94,133 @@
     document.addEventListener("DOMContentLoaded", function() {
         const brandSelect = document.getElementById("id_brand");
         const oidProfileSelect = document.getElementById("id_oid_profile");
+        const form = document.getElementById("printer-edit-form");
+        const isEditMode = "{{ title|default:'' }}".includes("Editar");
         
-        if (!brandSelect || !oidProfileSelect) return;
-        
-        // Mapeamento de OID Profile ID -> Brand ID lido do DOM
-        const profileBrandMap = {};
-        document.querySelectorAll("#oid-profile-mapping span").forEach(span => {
-            const oidId = span.getAttribute("data-oid-id");
-            const brandId = span.getAttribute("data-brand-id");
-            profileBrandMap[oidId] = brandId;
-        });
-        
-        const originalOptions = Array.from(oidProfileSelect.options);
-        
-        function filterOidProfiles() {
-            const selectedBrandId = brandSelect.value;
-            const previousValue = oidProfileSelect.value;
-            
-            oidProfileSelect.innerHTML = "";
-            
-            originalOptions.forEach(option => {
-                if (!option.value) {
-                    oidProfileSelect.appendChild(option.cloneNode(true));
-                    return;
-                }
-                const brandId = profileBrandMap[option.value];
-                if (brandId === selectedBrandId) {
-                    oidProfileSelect.appendChild(option.cloneNode(true));
-                }
+        // 1. Filter OID Profiles by Brand
+        if (brandSelect && oidProfileSelect) {
+            const profileBrandMap = {};
+            document.querySelectorAll("#oid-profile-mapping span").forEach(span => {
+                const oidId = span.getAttribute("data-oid-id");
+                const brandId = span.getAttribute("data-brand-id");
+                profileBrandMap[oidId] = brandId;
             });
             
-            // Restaurar valor anterior se ainda for válido na lista filtrada
-            oidProfileSelect.value = previousValue;
+            const originalOptions = Array.from(oidProfileSelect.options);
+            
+            function filterOidProfiles() {
+                const selectedBrandId = brandSelect.value;
+                const previousValue = oidProfileSelect.value;
+                
+                oidProfileSelect.innerHTML = "";
+                
+                originalOptions.forEach(option => {
+                    if (!option.value) {
+                        oidProfileSelect.appendChild(option.cloneNode(true));
+                        return;
+                    }
+                    const brandId = profileBrandMap[option.value];
+                    if (brandId === selectedBrandId) {
+                        oidProfileSelect.appendChild(option.cloneNode(true));
+                    }
+                });
+                
+                oidProfileSelect.value = previousValue;
+            }
+            
+            brandSelect.addEventListener("change", filterOidProfiles);
+            filterOidProfiles();
         }
-        
-        brandSelect.addEventListener("change", filterOidProfiles);
-        
-        // Executar no carregamento inicial
-        filterOidProfiles();
+
+        // 2. Track initial values for change detection
+        if (form && isEditMode) {
+            const initialValues = {};
+            const fieldLabels = {};
+
+            form.querySelectorAll('input, select, textarea').forEach(input => {
+                if (!input.name || input.type === 'hidden' || input.name === 'csrfmiddlewaretoken') return;
+                
+                const labelEl = document.querySelector(`label[for="${input.id}"]`);
+                fieldLabels[input.name] = labelEl ? labelEl.textContent.trim() : input.name;
+
+                if (input.tagName === 'SELECT') {
+                    const selectedOpt = input.options[input.selectedIndex];
+                    initialValues[input.name] = {
+                        val: input.value,
+                        text: selectedOpt ? selectedOpt.text.trim() : ''
+                    };
+                } else {
+                    initialValues[input.name] = {
+                        val: input.value,
+                        text: input.value
+                    };
+                }
+            });
+
+            form.addEventListener('submit', function(e) {
+                if (form.dataset.confirmed === "true") return;
+
+                e.preventDefault();
+
+                const changes = [];
+                form.querySelectorAll('input, select, textarea').forEach(input => {
+                    if (!input.name || input.type === 'hidden' || input.name === 'csrfmiddlewaretoken') return;
+                    
+                    const initObj = initialValues[input.name];
+                    if (!initObj) return;
+
+                    let currentVal = input.value;
+                    let currentText = currentVal;
+                    
+                    if (input.tagName === 'SELECT') {
+                        const opt = input.options[input.selectedIndex];
+                        currentText = opt ? opt.text.trim() : currentVal;
+                    }
+
+                    if (initObj.val !== currentVal) {
+                        changes.push({
+                            label: fieldLabels[input.name] || input.name,
+                            from: initObj.text || "(vazio)",
+                            to: currentText || "(vazio)"
+                        });
+                    }
+                });
+
+                if (changes.length === 0) {
+                    form.dataset.confirmed = "true";
+                    form.submit();
+                    return;
+                }
+
+                let summaryHtml = '<div class="space-y-2 max-h-52 overflow-y-auto pr-1">';
+                changes.forEach(c => {
+                    summaryHtml += `
+                        <div class="bg-gray-50 dark:bg-zinc-950 p-3 rounded-xl border border-gray-100 dark:border-zinc-800 text-xs">
+                            <span class="font-bold text-gray-900 dark:text-white block mb-1">${c.label}</span>
+                            <div class="flex items-center gap-2 text-[11px] font-mono flex-wrap">
+                                <span class="text-red-500 line-through opacity-80 bg-red-500/10 px-1.5 py-0.5 rounded">${c.from}</span>
+                                <span class="text-gray-400">&rarr;</span>
+                                <span class="text-emerald-500 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">${c.to}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                summaryHtml += '</div>';
+
+                document.getElementById('edit-changes-list').innerHTML = summaryHtml;
+                document.getElementById('prisma-edit-confirm-modal').classList.remove('hidden');
+            });
+
+            document.getElementById('confirm-save-btn').onclick = function() {
+                form.dataset.confirmed = "true";
+                form.submit();
+            };
+        }
     });
+
+    function closeEditConfirmModal() {
+        const modal = document.getElementById('prisma-edit-confirm-modal');
+        if (modal) modal.classList.add('hidden');
+    }
 </script>
 {% endblock %}

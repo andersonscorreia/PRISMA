@@ -1,5 +1,18 @@
 import secrets
 from django.db import models
+from django.utils import timezone
+
+
+class StatusImpressora(models.TextChoices):
+    ESTOQUE = 'ESTOQUE', 'Estoque'
+    CLIENTE = 'CLIENTE', 'Cliente'
+    MANUTENCAO = 'MANUTENCAO', 'Manutenção'
+
+
+class OrigemContador(models.TextChoices):
+    DIARIO = 'DIARIO', 'Diário'
+    MOVIMENTACAO = 'MOVIMENTACAO', 'Movimentação'
+
 
 # Marcas dinâmicas cadastradas no banco
 
@@ -162,6 +175,30 @@ class PrinterOID(models.Model):
         return f"OIDs - {self.brand.name} ({self.name})"
 
 
+class ComputadorAgente(models.Model):
+    identificador_unico = models.CharField(
+        max_length=255, 
+        unique=True, 
+        verbose_name="Identificador Único (UUID/Token)"
+    )
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.CASCADE,
+        related_name="computadores_agentes",
+        verbose_name="Cliente Associado",
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        verbose_name = "Computador Agente"
+        verbose_name_plural = "Computadores Agentes"
+        db_table = "computador_agente"
+
+    def __str__(self):
+        return f"{self.cliente.nome if self.cliente else 'Sem Cliente'} - {self.identificador_unico}"
+
+
 class Impressora(models.Model):
     """
     Representa uma Impressora cadastrada e monitorada no sistema.
@@ -174,7 +211,9 @@ class Impressora(models.Model):
     )
     brand = models.ForeignKey(
         Brand, 
-        on_delete=models.PROTECT, 
+        on_delete=models.SET_NULL, 
+        null=True,
+        blank=True,
         related_name="impressoras", 
         verbose_name="Marca"
     )
@@ -187,20 +226,37 @@ class Impressora(models.Model):
         verbose_name="Perfil / Grupo de OID"
     )
     contador_inicial = models.IntegerField(default=0, verbose_name="Contador Inicial")
+    ultimo_contador_pb = models.IntegerField(default=0, verbose_name="Último Contador PB")
+    ultimo_contador_color = models.IntegerField(default=0, verbose_name="Último Contador Color")
     name = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nome da Impressora")
     ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="Endereço IP")
     status = models.CharField(
         max_length=50,
-        choices=[
-            ('ESTOQUE', 'Disponível no Estoque'),
-            ('ALOCADA', 'Alocada em Cliente'),
-            ('MANUTENÇÃO', 'Em Manutenção')
-        ],
-        default='ESTOQUE',
+        choices=StatusImpressora.choices,
+        default=StatusImpressora.ESTOQUE,
         verbose_name="Status"
     )
     data_alocacao = models.DateTimeField(null=True, blank=True, verbose_name="Data de Alocação")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Atualizado Em")
+
+    computador_agente = models.ForeignKey(
+        ComputadorAgente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="impressoras_vinculadas",
+        verbose_name="Computador Agente"
+    )
+    ip_ou_hostname = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        verbose_name="IP ou Hostname"
+    )
+    ativa = models.BooleanField(
+        default=True,
+        verbose_name="Ativa"
+    )
 
     # Campos de compatibilidade legada
     cliente = models.ForeignKey(
@@ -229,12 +285,41 @@ class Impressora(models.Model):
         return f"{self.name or 'Sem Nome'} ({brand_name}) - {self.serial_number}"
 
     @property
+    def numero_serie(self):
+        return self.serial_number
+
+    @numero_serie.setter
+    def numero_serie(self, value):
+        self.serial_number = value
+
+    @property
     def n_s(self):
         return self.serial_number
 
     @property
     def ip(self):
         return self.ip_address
+
+    @property
+    def ultima_coleta(self):
+        if not hasattr(self, '_cached_ultima_coleta'):
+            col = ColetaImpressora.objects.filter(serial=self.serial_number).first()
+            if not col and self.ip_address:
+                col = ColetaImpressora.objects.filter(ip=self.ip_address).first()
+            self._cached_ultima_coleta = col
+        return self._cached_ultima_coleta
+
+    @property
+    def tem_subcontadores(self):
+        col = self.ultima_coleta
+        if col and (col.contador_a4 is not None or col.contador_a3 is not None or col.contador_a5 is not None):
+            return True
+        try:
+            return self.historicos_contador.filter(
+                models.Q(contador_a4__isnull=False) | models.Q(contador_a3__isnull=False) | models.Q(contador_a5__isnull=False)
+            ).exists()
+        except Exception:
+            return False
 
 
 class APIToken(models.Model):
@@ -342,3 +427,183 @@ class HistoricoManutencao(models.Model):
 
     def __str__(self):
         return f"Reparo {self.impressora.serial_number} - {self.data_entrada.strftime('%d/%m/%Y') if self.data_entrada else ''}"
+
+
+class HistoricoMovimentacao(models.Model):
+    """
+    Rastreia o histórico de movimentação de status da impressora (ESTOQUE, CLIENTE, MANUTENCAO).
+    """
+    impressora = models.ForeignKey(
+        Impressora,
+        on_delete=models.CASCADE,
+        related_name="historicos_movimentacao",
+        verbose_name="Impressora"
+    )
+    status = models.CharField(
+        max_length=50,
+        choices=StatusImpressora.choices,
+        verbose_name="Status"
+    )
+    cliente = models.ForeignKey(
+        Cliente,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="historicos_movimentacao",
+        verbose_name="Cliente"
+    )
+    data_movimentacao = models.DateTimeField(
+        default=timezone.now,
+        verbose_name="Data da Movimentação"
+    )
+    observacao = models.TextField(
+        null=True,
+        blank=True,
+        verbose_name="Observação"
+    )
+
+    class Meta:
+        verbose_name = "Histórico de Movimentação"
+        verbose_name_plural = "Históricos de Movimentações"
+        db_table = "historico_movimentacao"
+        ordering = ['-data_movimentacao']
+
+    def __str__(self):
+        return f"Movimentação {self.impressora.serial_number} -> {self.status} em {self.data_movimentacao.strftime('%d/%m/%Y %H:%M')}"
+
+
+class HistoricoContador(models.Model):
+    """
+    Rastreia o histórico de contadores (PB e Color) por impressora.
+    - Origem DIARIO: no máximo 1 registro por dia por impressora.
+    - Origem MOVIMENTACAO: criado obrigatoriamente na transição de status da impressora.
+    """
+    impressora = models.ForeignKey(
+        Impressora,
+        on_delete=models.CASCADE,
+        related_name="historicos_contador",
+        verbose_name="Impressora"
+    )
+    data_coleta = models.DateField(
+        verbose_name="Data da Coleta"
+    )
+    timestamp = models.DateTimeField(
+        default=timezone.now,
+        verbose_name="Timestamp"
+    )
+    contador_pb = models.IntegerField(
+        default=0,
+        verbose_name="Contador PB"
+    )
+    contador_color = models.IntegerField(
+        default=0,
+        verbose_name="Contador Color"
+    )
+    contador_a4 = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Contador A4"
+    )
+    contador_a3 = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Contador A3"
+    )
+    contador_a5 = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Contador A5"
+    )
+    contador_total = models.IntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Contador Total"
+    )
+    origem = models.CharField(
+        max_length=20,
+        choices=OrigemContador.choices,
+        default=OrigemContador.DIARIO,
+        verbose_name="Origem do Registro"
+    )
+
+    class Meta:
+        verbose_name = "Histórico de Contador"
+        verbose_name_plural = "Históricos de Contadores"
+        db_table = "historico_contador"
+        ordering = ['-timestamp']
+
+    @property
+    def safe_contador_a4(self):
+        try:
+            return self.contador_a4
+        except Exception:
+            return None
+
+    @property
+    def safe_contador_a3(self):
+        try:
+            return self.contador_a3
+        except Exception:
+            return None
+
+    @property
+    def safe_contador_a5(self):
+        try:
+            return self.contador_a5
+        except Exception:
+            return None
+
+    @property
+    def get_a4(self):
+        val = self.safe_contador_a4
+        if val is not None and val > 0:
+            return val
+        if self.contador_pb and self.contador_pb > 0:
+            return self.contador_pb
+        col = getattr(self.impressora, 'ultima_coleta', None)
+        if col and col.contador_a4 is not None:
+            return col.contador_a4
+        return 0
+
+    @property
+    def get_a3(self):
+        val = self.safe_contador_a3
+        if val is not None and val > 0:
+            return val
+        if self.contador_color and self.contador_color > 0:
+            return self.contador_color
+        col = getattr(self.impressora, 'ultima_coleta', None)
+        if col and col.contador_a3 is not None:
+            return col.contador_a3
+        return 0
+
+    @property
+    def get_a5(self):
+        val = self.safe_contador_a5
+        if val is not None and val > 0:
+            return val
+        col = getattr(self.impressora, 'ultima_coleta', None)
+        if col and col.contador_a5 is not None and col.contador_a5 > 0:
+            return col.contador_a5
+        a4 = self.get_a4
+        a3 = self.get_a3
+        if col and col.contador_geral and col.contador_geral > (a4 + a3):
+            return col.contador_geral - (a4 + a3)
+        return 0
+
+    @property
+    def get_geral(self):
+        try:
+            if self.contador_total is not None and self.contador_total > 0:
+                return self.contador_total
+        except Exception:
+            pass
+        if self.impressora.tem_subcontadores:
+            val = self.get_a4 + self.get_a3 + self.get_a5
+            if val > 0:
+                return val
+        return self.contador_pb or 0
+
+    def __str__(self):
+        return f"Contador {self.impressora.serial_number} [{self.origem}] ({self.data_coleta}): PB={self.contador_pb}, Color={self.contador_color}"
+

@@ -6,8 +6,23 @@ import argparse
 import requests
 from requests.exceptions import ConnectionError, Timeout, RequestException
 
+import json
+import os
+
+def get_default_server_url():
+    try:
+        if os.path.exists("config_servidor.json"):
+            with open("config_servidor.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+                url = data.get("django_api_url")
+                if url:
+                    return "/".join(url.split("/")[:3])
+    except Exception:
+        pass
+    return "http://localhost:8999"
+
 # Configuração Padrão do Servidor Django (Facilmente alterável antes da compilação)
-DEFAULT_SERVER_URL = "http://localhost:8999"
+DEFAULT_SERVER_URL = get_default_server_url()
 
 # Tenta importar puresnmp para suporte a consultas SNMP reais no cliente
 try:

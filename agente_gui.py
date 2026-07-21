@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import uuid
 import customtkinter as ctk
 import httpx
 import json
@@ -18,40 +19,86 @@ ctk.set_appearance_mode("dark")
 ARQUIVO_JSON = "impressoras.json"
 CONFIG_SERVIDORES_JSON = "config_servidor.json"
 
+def get_agent_id():
+    """Obtém o ID único do agente (persiste localmente em .agent_token se não existir)."""
+    agent_id = os.environ.get("PRISMA_AGENT_ID")
+    if agent_id:
+        return agent_id.strip()
+    
+    token_file = ".agent_token"
+    if os.path.exists(token_file):
+        try:
+            with open(token_file, "r", encoding="utf-8") as f:
+                token = f.read().strip()
+                if token:
+                    return token
+        except Exception:
+            pass
+            
+    mac = uuid.getnode()
+    generated_id = f"AGENT-{uuid.UUID(int=mac)}"
+    try:
+        with open(token_file, "w", encoding="utf-8") as f:
+            f.write(generated_id)
+    except Exception as e:
+        print(f"[Erro Token] Falha ao salvar: {e}")
+    return generated_id
+
 def carregar_config_servidor():
-    """Carrega o endereço do servidor do JSON. Retorna valor default se não existir."""
-    default_url = "http://192.170.0.241:8999/api/coleta/"
+    """Carrega as configurações do JSON. Retorna valores default se não existir."""
+    default_config = {
+        "django_api_url": "http://192.170.0.241:8999/api/coleta/",
+        "cliente_nome": "Sem Cliente Associado",
+        "cliente_id": None
+    }
     if os.path.exists(CONFIG_SERVIDORES_JSON):
         try:
             with open(CONFIG_SERVIDORES_JSON, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                return data.get("django_api_url", default_url)
+                for k, v in default_config.items():
+                    if k not in data:
+                        data[k] = v
+                return data
         except Exception:
             pass
-    return default_url
+    return default_config
 
-def salvar_config_servidor(url):
+def salvar_config_servidor(config_dict):
     try:
         with open(CONFIG_SERVIDORES_JSON, 'w', encoding='utf-8') as f:
-            json.dump({"django_api_url": url}, f, indent=4)
+            json.dump(config_dict, f, indent=4, ensure_ascii=False)
     except Exception as e:
         print(f"[Erro Config] Falha ao salvar: {e}")
 
 class AppConfig:
-    django_api_url = carregar_config_servidor()
+    _config = carregar_config_servidor()
     
     @classmethod
     def get_api_url(cls):
-        return cls.django_api_url
+        return cls._config.get("django_api_url")
         
     @classmethod
     def get_server_url(cls):
-        return "/".join(cls.django_api_url.split("/")[:3])
+        return "/".join(cls._config.get("django_api_url").split("/")[:3])
+        
+    @classmethod
+    def get_cliente_nome(cls):
+        return cls._config.get("cliente_nome", "Sem Cliente Associado")
+        
+    @classmethod
+    def get_cliente_id(cls):
+        return cls._config.get("cliente_id")
         
     @classmethod
     def update(cls, url):
-        cls.django_api_url = url
-        salvar_config_servidor(url)
+        cls._config["django_api_url"] = url
+        salvar_config_servidor(cls._config)
+        
+    @classmethod
+    def update_cliente(cls, cliente_nome, cliente_id):
+        cls._config["cliente_nome"] = cliente_nome
+        cls._config["cliente_id"] = cliente_id
+        salvar_config_servidor(cls._config)
 
 def carregar_do_json():
     """Carrega as impressoras cadastradas do arquivo JSON. Se não existir, retorna a base default."""
@@ -119,111 +166,393 @@ class Session:
     is_authenticated = False
     token = None
 
-class JanelaLogin(ctk.CTkToplevel):
-    def __init__(self, master, on_success=None):
-        super().__init__(master)
-        self.master_app = master
-        self.on_success = on_success
-        self.title("Acesso Restrito")
-        self.geometry("380x280")
-        self.configure(fg_color="#090a0f")
-        self.resizable(False, False)
-        self.transient(master)
-        self.grab_set()
-
-        # Título
-        self.lbl_titulo = ctk.CTkLabel(self, text="LOGIN REQUERIDO", font=("Inter", 14, "bold"), text_color="#ffffff")
-        self.lbl_titulo.pack(pady=(25, 15))
-
-        # Campo Usuário
-        self.entry_user = ctk.CTkEntry(self, width=280, height=35, placeholder_text="Usuário", fg_color="#181920", border_color="#282933", text_color="#ffffff")
-        self.entry_user.pack(pady=8)
-
-        # Campo Senha
-        self.entry_pass = ctk.CTkEntry(self, width=280, height=35, placeholder_text="Senha", show="*", fg_color="#181920", border_color="#282933", text_color="#ffffff")
-        self.entry_pass.pack(pady=8)
-
-        # Botões
-        self.frame_botoes = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_botoes.pack(pady=(20, 10))
-
-        self.btn_cancelar = ctk.CTkButton(self.frame_botoes, text="Cancelar", width=120, height=32, fg_color="#ef4444", hover_color="#dc2626", font=("Inter", 11, "bold"), command=self.destroy)
-        self.btn_cancelar.pack(side="left", padx=10)
-
-        self.btn_entrar = ctk.CTkButton(self.frame_botoes, text="Entrar", width=120, height=32, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.efetuar_login_thread)
-        self.btn_entrar.pack(side="left", padx=10)
-
-    def efetuar_login_thread(self):
-        username = self.entry_user.get().strip()
-        password = self.entry_pass.get().strip()
-        if not username or not password:
-            messagebox.showerror("Erro", "Preencha todos os campos.")
-            return
-
-        self.btn_entrar.configure(state="disabled", text="Autenticando...")
-        threading.Thread(target=lambda: asyncio.run(self.executar_login_async(username, password)), daemon=True).start()
-
-    async def executar_login_async(self, username, password):
-        url = f"{AppConfig.get_server_url()}/api/login/"
+def criar_imagem_icone(tipo, cor_hex):
+    # Imagem RGBA de alta resolução 64x64 (redimensionada para 20x20)
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    
+    # Converte cor hex para tuple RGBA
+    cor = tuple(int(cor_hex.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) + (255,)
+    
+    def draw_rounded_rect(coords, r, f=None, o=None, w=1):
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(url, json={"username": username, "password": password}, timeout=5.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    Session.is_authenticated = True
-                    Session.token = data.get("token")
-                    self.after(0, self.tratar_sucesso)
-                elif response.status_code in (401, 403):
-                    self.after(0, lambda: self.tratar_erro("Credenciais inválidas. Verifique seu usuário e senha."))
-                else:
-                    self.after(0, lambda: self.tratar_erro(f"Erro no servidor: Código {response.status_code}"))
-        except Exception as e:
-            self.after(0, lambda: self.tratar_erro(f"Falha de conexão com o servidor: {e}"))
+            draw.rounded_rectangle(coords, radius=r, fill=f, outline=o, width=w)
+        except AttributeError:
+            draw.rectangle(coords, fill=f, outline=o, width=w)
 
-    def tratar_sucesso(self):
-        messagebox.showinfo("Sucesso", "Autenticação realizada com sucesso!")
-        self.destroy()
-        if self.on_success:
-            self.on_success()
-        if hasattr(self.master_app, 'atualizar_botoes_auth'):
-            self.master_app.atualizar_botoes_auth()
+    if tipo == "menu":
+        draw_rounded_rect([10, 14, 54, 20], r=3, f=cor)
+        draw_rounded_rect([10, 29, 54, 35], r=3, f=cor)
+        draw_rounded_rect([10, 44, 54, 50], r=3, f=cor)
+        
+    elif tipo == "dashboard":
+        draw_rounded_rect([8, 8, 26, 26], r=4, f=cor)
+        draw_rounded_rect([38, 8, 56, 26], r=4, f=cor)
+        draw_rounded_rect([8, 38, 26, 56], r=4, f=cor)
+        draw_rounded_rect([38, 38, 56, 56], r=4, f=cor)
+        
+    elif tipo == "config":
+        draw.ellipse([14, 14, 50, 50], outline=cor, width=6)
+        draw.ellipse([26, 26, 38, 38], outline=cor, width=4)
+        import math
+        for angulo in range(0, 360, 45):
+            rad = math.radians(angulo)
+            x1 = int(32 + 18 * math.cos(rad))
+            y1 = int(32 + 18 * math.sin(rad))
+            x2 = int(32 + 28 * math.cos(rad))
+            y2 = int(32 + 28 * math.sin(rad))
+            draw.line([x1, y1, x2, y2], fill=cor, width=6)
+        
+    elif tipo == "gerenciar":
+        draw_rounded_rect([16, 8, 48, 20], r=2, o=cor, w=4)
+        draw.rectangle([24, 14, 40, 22], fill=cor)
+        draw_rounded_rect([8, 22, 56, 46], r=4, f=cor)
+        draw_rounded_rect([18, 38, 46, 56], r=2, o=cor, w=4)
+        draw.rectangle([24, 42, 40, 50], fill=cor)
+        
+    elif tipo == "cliente":
+        draw_rounded_rect([16, 8, 48, 56], r=4, o=cor, w=4)
+        for y in [16, 26, 36, 46]:
+            for x in [22, 30, 38]:
+                draw.rectangle([x, y, x+4, y+4], fill=cor)
+                
+    elif tipo == "login":
+        draw_rounded_rect([16, 26, 48, 56], r=5, f=cor)
+        draw.arc([22, 10, 42, 32], 180, 0, fill=cor, width=5)
+        draw.ellipse([29, 36, 35, 42], fill=(0, 0, 0, 0))
+        draw.rectangle([31, 42, 33, 48], fill=(0, 0, 0, 0))
+        
+    elif tipo == "logout":
+        draw.line([16, 8, 16, 56], fill=cor, width=4)
+        draw.line([16, 8, 44, 8], fill=cor, width=4)
+        draw.line([16, 56, 44, 56], fill=cor, width=4)
+        draw.line([26, 32, 52, 32], fill=cor, width=4)
+        draw.line([44, 24, 52, 32], fill=cor, width=4)
+        draw.line([44, 40, 52, 32], fill=cor, width=4)
+        
+    return ctk.CTkImage(light_image=img, dark_image=img, size=(20, 20))
 
-    def tratar_erro(self, msg):
-        messagebox.showerror("Erro de Login", msg)
-        self.btn_entrar.configure(state="normal", text="Entrar")
 
+class DashboardFinal(ctk.CTk):
+    def __init__(self):
+        super().__init__()
 
-class JanelaConfigServidor(ctk.CTkToplevel):
-    def __init__(self, master):
-        super().__init__(master)
-        self.title("Configurar Servidor")
-        self.geometry("520x220")
+        self.title("PRISMA - Monitoramento Local Avançado")
+        self.geometry("1350x850")
         self.configure(fg_color="#090a0f")
-        self.transient(master)
-        self.grab_set()
 
-        # Título
-        self.lbl_titulo = ctk.CTkLabel(self, text="CONFIGURAR SERVIDOR DJANGO", font=("Inter", 12, "bold"), text_color="#ffffff")
-        self.lbl_titulo.pack(pady=(20, 10))
+        self.impressoras_cadastradas = carregar_do_json()
+        self.cards_ui = {}
+        self.timer_job = None
+        self.sidebar_animation_job = None
+        self.sidebar_expanded = True
+        self.sidebar_current_width = 220
+        self.active_view = "dashboard"
+        
+        self.protocol("WM_DELETE_WINDOW", self.minimizar_para_tray)
 
-        # Input URL
-        self.lbl_url = ctk.CTkLabel(self, text="URL da API de Coleta (ex: http://192.170.0.241:8999/api/coleta/)", font=("Inter", 10), text_color="#94a3b8")
-        self.lbl_url.pack(anchor="w", padx=40)
-        self.entry_url = ctk.CTkEntry(self, width=440, fg_color="#181920", border_color="#282933", text_color="#ffffff")
+        # Dynamic clean graphics icons
+        self.icon_toggle = criar_imagem_icone("menu", "#ffffff")
+        self.icon_dashboard = criar_imagem_icone("dashboard", "#ffffff")
+        self.icon_gerenciamento = criar_imagem_icone("gerenciar", "#ffffff")
+        self.icon_cliente = criar_imagem_icone("cliente", "#ffffff")
+        self.icon_config = criar_imagem_icone("config", "#ffffff")
+        self.icon_login = criar_imagem_icone("login", "#10b981")
+        self.icon_logout = criar_imagem_icone("logout", "#ef4444")
+
+        # --- SIDEBAR & MAIN CONTAINER LAYOUT ---
+        self.frame_main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.frame_main_container.pack(fill="both", expand=True)
+
+        # Left Sidebar Frame
+        self.frame_sidebar = ctk.CTkFrame(self.frame_main_container, width=220, fg_color="#111218", border_color="#1d1e26", border_width=1, corner_radius=0)
+        self.frame_sidebar.pack(side="left", fill="y")
+        self.frame_sidebar.pack_propagate(False)
+
+        # Right Content Frame
+        self.frame_content = ctk.CTkFrame(self.frame_main_container, fg_color="transparent")
+        self.frame_content.pack(side="right", fill="both", expand=True)
+
+        # --- SIDEBAR WIDGETS ---
+        # Toggle Button / Title
+        self.btn_toggle = ctk.CTkButton(self.frame_sidebar, text="PRISMA", image=self.icon_toggle, compound="left", font=("Inter", 14, "bold"), text_color="#ffffff", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=45, corner_radius=8, command=self.toggle_sidebar)
+        self.btn_toggle.pack(fill="x", padx=10, pady=(15, 20))
+
+        # Nav: Dashboard
+        self.btn_nav_dashboard = ctk.CTkButton(self.frame_sidebar, text="Dashboard", image=self.icon_dashboard, compound="left", font=("Inter", 12, "bold"), text_color="#ffffff", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=40, corner_radius=8, command=lambda: self.show_view("dashboard"))
+        self.btn_nav_dashboard.pack(fill="x", padx=10, pady=2)
+
+        # Nav: Gerenciamento Cache
+        self.btn_nav_gerenciamento = ctk.CTkButton(self.frame_sidebar, text="Gerenciar Cache", image=self.icon_gerenciamento, compound="left", font=("Inter", 12, "bold"), text_color="#ffffff", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=40, corner_radius=8, command=lambda: self.show_view("gerenciamento"))
+
+        # Nav: Selecionar Cliente
+        self.btn_nav_cliente = ctk.CTkButton(self.frame_sidebar, text="Selecionar Cliente", image=self.icon_cliente, compound="left", font=("Inter", 12, "bold"), text_color="#ffffff", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=40, corner_radius=8, command=lambda: self.show_view("vincular_cliente"))
+
+        # Nav: Configurar Servidor
+        self.btn_nav_config = ctk.CTkButton(self.frame_sidebar, text="Config Servidor", image=self.icon_config, compound="left", font=("Inter", 12, "bold"), text_color="#ffffff", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=40, corner_radius=8, command=lambda: self.show_view("config_servidor"))
+        self.btn_nav_config.pack(fill="x", padx=10, pady=2)
+
+        # Nav: Login / Auth
+        self.btn_nav_auth = ctk.CTkButton(self.frame_sidebar, text="Fazer Login", image=self.icon_login, compound="left", font=("Inter", 12, "bold"), text_color="#10b981", fg_color="transparent", hover_color="#1d1e26", anchor="w", width=40, height=40, corner_radius=8, command=self.alternar_auth)
+        self.btn_nav_auth.pack(fill="x", padx=10, pady=(20, 2))
+
+        # --- INITIALIZE ALL SUB-VIEWS ---
+        self.init_view_dashboard()
+        self.init_view_config_servidor()
+        self.init_view_vincular_cliente()
+        self.init_view_login()
+        self.init_view_gerenciamento()
+
+        # Reconstruir os cards do Dashboard com as impressoras cadastradas
+        self.reconstruir_cards_dashboard(disparar=True)
+
+        # Show Dashboard initially
+        self.show_view("dashboard")
+
+        self.configurar_automacao()
+        self.atualizar_botoes_auth()
+        self.iniciar_tray_icon()
+
+    def toggle_sidebar(self):
+        is_dashboard = getattr(self, "active_view", "dashboard") == "dashboard"
+        
+        if is_dashboard:
+            # Suspend layout of scroll frame to avoid expensive recursive card redraws
+            self.frame_scroll.pack_forget()
+        
+        if self.sidebar_expanded:
+            # Clear text instantly before collapsing to prevent clipping/wrapping artifacts during slide
+            self.btn_toggle.configure(text="", image=self.icon_toggle, anchor="center")
+            self.btn_nav_dashboard.configure(text="", anchor="center")
+            self.btn_nav_gerenciamento.configure(text="", anchor="center")
+            self.btn_nav_cliente.configure(text="", anchor="center")
+            self.btn_nav_config.configure(text="", anchor="center")
+            self.btn_nav_auth.configure(text="", anchor="center")
+            
+            self.sidebar_expanded = False
+            
+            if is_dashboard:
+                # Instant transition to avoid Tkinter layout recalculation lag on heavy scroll frame/cards
+                if self.sidebar_animation_job:
+                    self.after_cancel(self.sidebar_animation_job)
+                    self.sidebar_animation_job = None
+                self.sidebar_current_width = 60
+                self.frame_sidebar.configure(width=60)
+            else:
+                self.animate_sidebar(60)
+        else:
+            self.sidebar_expanded = True
+            
+            if is_dashboard:
+                # Instant transition to avoid Tkinter layout recalculation lag on heavy scroll frame/cards
+                if self.sidebar_animation_job:
+                    self.after_cancel(self.sidebar_animation_job)
+                    self.sidebar_animation_job = None
+                self.sidebar_current_width = 220
+                self.frame_sidebar.configure(width=220)
+                # Set expanded labels instantly
+                self.btn_toggle.configure(text="PRISMA", image=self.icon_toggle, anchor="w")
+                self.btn_nav_dashboard.configure(text="Dashboard", anchor="w")
+                self.btn_nav_gerenciamento.configure(text="Gerenciar Cache", anchor="w")
+                self.btn_nav_cliente.configure(text="Selecionar Cliente", anchor="w")
+                self.btn_nav_config.configure(text="Config Servidor", anchor="w")
+                if Session.is_authenticated:
+                    self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
+                else:
+                    self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
+            else:
+                self.animate_sidebar(220)
+                
+        if is_dashboard:
+            # Re-pack scroll frame after the sidebar has resized
+            self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
+            self.update_idletasks()
+
+    def animate_sidebar(self, target_width):
+        if self.sidebar_animation_job:
+            self.after_cancel(self.sidebar_animation_job)
+            self.sidebar_animation_job = None
+            
+        if not hasattr(self, "sidebar_current_width"):
+            self.sidebar_current_width = 220 if not self.sidebar_expanded else 60
+            
+        current_width = self.sidebar_current_width
+        
+        diff = target_width - current_width
+        step_size = 32  # snappy steps to minimize total redraws
+        delay = 12      # ms delay
+        
+        if abs(diff) <= step_size:
+            self.sidebar_current_width = target_width
+            self.frame_sidebar.configure(width=target_width)
+            self.update_idletasks()
+            self.sidebar_animation_job = None
+            if self.sidebar_expanded:
+                # Finished expanding, set the labels
+                self.btn_toggle.configure(text="PRISMA", image=self.icon_toggle, anchor="w")
+                self.btn_nav_dashboard.configure(text="Dashboard", anchor="w")
+                self.btn_nav_gerenciamento.configure(text="Gerenciar Cache", anchor="w")
+                self.btn_nav_cliente.configure(text="Selecionar Cliente", anchor="w")
+                self.btn_nav_config.configure(text="Config Servidor", anchor="w")
+                if Session.is_authenticated:
+                    self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
+                else:
+                    self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
+
+            if getattr(self, "active_view", "dashboard") == "dashboard":
+                self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
+        else:
+            step = step_size if diff > 0 else -step_size
+            new_width = current_width + step
+            self.sidebar_current_width = new_width
+            self.frame_sidebar.configure(width=new_width)
+            self.update_idletasks()
+            self.sidebar_animation_job = self.after(delay, lambda: self.animate_sidebar(target_width))
+
+    def show_view(self, name):
+        # Unpack all views
+        self.view_dashboard.pack_forget()
+        self.view_config_servidor.pack_forget()
+        self.view_vincular_cliente.pack_forget()
+        self.view_login.pack_forget()
+        self.view_gerenciamento.pack_forget()
+
+        self.active_view = name
+
+        # Pack target
+        if name == "dashboard":
+            self.view_dashboard.pack(fill="both", expand=True, padx=35, pady=25)
+            self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
+            if not getattr(self, "cards_ui", None):
+                self.reconstruir_cards_dashboard(disparar=False)
+        elif name == "config_servidor":
+            self.view_config_servidor.pack(fill="both", expand=True, padx=35, pady=25)
+        elif name == "vincular_cliente":
+            self.view_vincular_cliente.pack(fill="both", expand=True, padx=35, pady=25)
+            self.carregar_clientes_na_view()
+        elif name == "login":
+            self.view_login.pack(fill="both", expand=True, padx=35, pady=25)
+        elif name == "gerenciamento":
+            self.view_gerenciamento.pack(fill="both", expand=True, padx=35, pady=25)
+            self.atualizar_lista_gerenciamento()
+
+    def alternar_auth(self):
+        if Session.is_authenticated:
+            self.desconectar_usuario()
+        else:
+            self.show_view("login")
+
+    def desconectar_usuario(self):
+        Session.is_authenticated = False
+        Session.token = None
+        messagebox.showinfo("Logout", "Você foi desconectado.")
+        self.atualizar_botoes_auth()
+        self.show_view("dashboard")
+
+    def atualizar_botoes_auth(self):
+        self.lbl_cliente_associado.configure(text=f"Cliente Monitorado: {AppConfig.get_cliente_nome()}")
+        
+        self.btn_nav_gerenciamento.pack_forget()
+        self.btn_nav_cliente.pack_forget()
+        self.btn_nav_auth.pack_forget()
+
+        if Session.is_authenticated:
+            self.btn_nav_gerenciamento.pack(fill="x", padx=10, pady=2)
+            self.btn_nav_cliente.pack(fill="x", padx=10, pady=2)
+            
+            if self.sidebar_expanded:
+                self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
+            else:
+                self.btn_nav_auth.configure(text="", image=self.icon_logout, text_color="#ef4444", anchor="center")
+        else:
+            if self.sidebar_expanded:
+                self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
+            else:
+                self.btn_nav_auth.configure(text="", image=self.icon_login, text_color="#10b981", anchor="center")
+                
+        self.btn_nav_auth.pack(fill="x", padx=10, pady=(20, 2))
+
+    # --- VIEW INITS AND LOGICS ---
+    def init_view_dashboard(self):
+        self.view_dashboard = ctk.CTkFrame(self.frame_content, fg_color="transparent")
+        
+        self.frame_top = ctk.CTkFrame(self.view_dashboard, fg_color="transparent")
+        self.frame_top.pack(fill="x", padx=0, pady=(0, 10))
+
+        self.frame_titulos = ctk.CTkFrame(self.frame_top, fg_color="transparent")
+        self.frame_titulos.pack(side="left")
+        
+        self.lbl_titulo = ctk.CTkLabel(self.frame_titulos, text="Métricas das Impressoras", font=("Inter", 24, "bold"), text_color="#ffffff")
+        self.lbl_titulo.pack(anchor="w")
+        self.lbl_sub = ctk.CTkLabel(self.frame_titulos, text="Gerenciamento multiescala de tempo e pooling dinâmico via SNMP", font=("Inter", 12), text_color="#94a3b8")
+        self.lbl_sub.pack(anchor="w", pady=(2, 0))
+
+        self.lbl_agent_id = ctk.CTkLabel(self.frame_titulos, text=f"ID do Agente: {get_agent_id()}", font=("Inter", 11, "bold"), text_color="#10b981")
+        self.lbl_agent_id.pack(anchor="w", pady=(2, 0))
+
+        self.lbl_cliente_associado = ctk.CTkLabel(self.frame_titulos, text=f"Cliente Monitorado: {AppConfig.get_cliente_nome()}", font=("Inter", 11, "bold"), text_color="#3b82f6")
+        self.lbl_cliente_associado.pack(anchor="w", pady=(2, 0))
+
+        self.frame_config_tempo = ctk.CTkFrame(self.frame_top, fg_color="#111218", corner_radius=8, border_color="#1d1e26", border_width=1, height=45)
+        self.frame_config_tempo.pack(side="right", padx=(15, 0))
+
+        ctk.CTkLabel(self.frame_config_tempo, text="Auto-atualizar:", font=("Inter", 11, "bold"), text_color="#94a3b8").pack(side="left", padx=(10, 5))
+        self.entry_tempo = ctk.CTkEntry(self.frame_config_tempo, width=45, height=28, fg_color="#181920", border_color="#282933", text_color="#ffffff", justify="center")
+        self.entry_tempo.insert(0, "30")
+        self.entry_tempo.pack(side="left", padx=2)
+
+        self.combo_unidade = ctk.CTkComboBox(self.frame_config_tempo, values=["Segundos", "Minutos", "Horas"], width=100, height=28, fg_color="#181920", border_color="#282933")
+        self.combo_unidade.set("Segundos")
+        self.combo_unidade.pack(side="left", padx=4)
+
+        self.btn_aplicar_tempo = ctk.CTkButton(self.frame_config_tempo, text="Agendar", width=65, height=28, fg_color="#181920", hover_color="#282933", text_color="#ffffff", font=("Inter", 11, "bold"), command=self.configurar_automacao)
+        self.btn_aplicar_tempo.pack(side="left", padx=(2, 10))
+
+        self.btn_atualizar = ctk.CTkButton(self.frame_top, text="Forçar Atualização", width=135, height=32, fg_color="#181920", hover_color="#282933", text_color="#ffffff", font=("Inter", 11, "bold"), command=self.disparar_coleta)
+        self.btn_atualizar.pack(side="right", padx=6)
+
+        self.frame_kpis = ctk.CTkFrame(self.view_dashboard, fg_color="transparent")
+        self.frame_kpis.pack(fill="x", padx=0, pady=10)
+        self.frame_kpis.columnconfigure((0, 1, 2, 3), weight=1, uniform="kpi")
+
+        self.kpi_total = self.card_kpi(self.frame_kpis, 0, "TOTAL IMPRESSORAS", "0", "🖨️")
+        self.kpi_online = self.card_kpi(self.frame_kpis, 1, "ONLINE", "0", "✓", cor_val="#10b981")
+        self.kpi_offline = self.card_kpi(self.frame_kpis, 2, "OFFLINE / INATIVAS", "0", "⚠", cor_val="#f87171")
+        self.kpi_alerta_toner = self.card_kpi(self.frame_kpis, 3, "SUPRIMENTOS < 15%", "0", "⚡", cor_val="#f59e0b")
+
+        self.frame_scroll = ctk.CTkScrollableFrame(self.view_dashboard, fg_color="transparent")
+        self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
+        
+        self.frame_grid_dispositivos = ctk.CTkFrame(self.frame_scroll, fg_color="transparent")
+        self.frame_grid_dispositivos.pack(fill="both", expand=True)
+        for i in range(4):
+            self.frame_grid_dispositivos.columnconfigure(i, weight=1, minsize=290)
+
+    def init_view_config_servidor(self):
+        self.view_config_servidor = ctk.CTkFrame(self.frame_content, fg_color="#111218", border_color="#1d1e26", border_width=1, corner_radius=12)
+        container = ctk.CTkFrame(self.view_config_servidor, fg_color="transparent")
+        container.pack(expand=True)
+        
+        lbl_titulo = ctk.CTkLabel(container, text="CONFIGURAR SERVIDOR DJANGO", font=("Inter", 16, "bold"), text_color="#ffffff")
+        lbl_titulo.pack(pady=(0, 20))
+
+        lbl_url = ctk.CTkLabel(container, text="URL da API de Coleta (ex: http://192.170.0.241:8999/api/coleta/)", font=("Inter", 11), text_color="#94a3b8")
+        lbl_url.pack(anchor="w", padx=10)
+        
+        self.entry_url = ctk.CTkEntry(container, width=460, height=35, fg_color="#181920", border_color="#282933", text_color="#ffffff")
         self.entry_url.insert(0, AppConfig.get_api_url())
-        self.entry_url.pack(pady=(2, 15))
+        self.entry_url.pack(pady=(5, 20))
 
-        # Botões
-        self.frame_botoes = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_botoes.pack()
+        frame_botoes = ctk.CTkFrame(container, fg_color="transparent")
+        frame_botoes.pack()
 
-        self.btn_cancelar = ctk.CTkButton(self.frame_botoes, text="Cancelar", width=100, fg_color="#ef4444", hover_color="#dc2626", font=("Inter", 11, "bold"), command=self.destroy)
-        self.btn_cancelar.pack(side="left", padx=10)
+        btn_cancelar = ctk.CTkButton(frame_botoes, text="Voltar ao Dashboard", width=160, height=35, fg_color="#4b5563", hover_color="#374151", font=("Inter", 11, "bold"), command=lambda: self.show_view("dashboard"))
+        btn_cancelar.pack(side="left", padx=10)
 
-        self.btn_salvar = ctk.CTkButton(self.frame_botoes, text="Salvar URL", width=100, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.salvar_config)
-        self.btn_salvar.pack(side="left", padx=10)
+        btn_salvar = ctk.CTkButton(frame_botoes, text="Salvar URL", width=160, height=35, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.salvar_config_servidor)
+        btn_salvar.pack(side="left", padx=10)
 
-    def salvar_config(self):
+    def salvar_config_servidor(self):
         nova_url = self.entry_url.get().strip()
         if not nova_url:
             messagebox.showerror("Erro", "A URL do servidor não pode ficar vazia.")
@@ -234,38 +563,191 @@ class JanelaConfigServidor(ctk.CTkToplevel):
             
         AppConfig.update(nova_url)
         messagebox.showinfo("Sucesso", "Endereço do servidor atualizado com sucesso!")
-        self.destroy()
+        self.show_view("dashboard")
 
+    def init_view_vincular_cliente(self):
+        self.view_vincular_cliente = ctk.CTkFrame(self.frame_content, fg_color="#111218", border_color="#1d1e26", border_width=1, corner_radius=12)
+        container = ctk.CTkFrame(self.view_vincular_cliente, fg_color="transparent")
+        container.pack(expand=True)
+        
+        lbl_titulo = ctk.CTkLabel(container, text="SELECIONAR CLIENTE DO AGENTE", font=("Inter", 16, "bold"), text_color="#ffffff")
+        lbl_titulo.pack(pady=(0, 10))
 
-class JanelaGerenciamento(ctk.CTkToplevel):
-    def __init__(self, master):
-        super().__init__(master)
-        self.master_app = master
-        self.title("Gerenciar Impressoras")
-        self.geometry("820x560")
-        self.configure(fg_color="#090a0f")
-        self.transient(master)
-        self.grab_set()
+        lbl_info = ctk.CTkLabel(container, text="Este agente coletará dados apenas das impressoras\nlocadas no cliente selecionado.", font=("Inter", 12), text_color="#94a3b8", justify="center")
+        lbl_info.pack(pady=(0, 20))
 
+        self.combo_clientes = ctk.CTkComboBox(container, values=["Carregando..."], width=320, height=35, fg_color="#181920", border_color="#282933", text_color="#ffffff")
+        self.combo_clientes.pack(pady=10)
+
+        frame_botoes = ctk.CTkFrame(container, fg_color="transparent")
+        frame_botoes.pack(pady=15)
+
+        btn_cancelar = ctk.CTkButton(frame_botoes, text="Voltar ao Dashboard", width=150, height=35, fg_color="#4b5563", hover_color="#374151", font=("Inter", 11, "bold"), command=lambda: self.show_view("dashboard"))
+        btn_cancelar.pack(side="left", padx=10)
+
+        self.btn_salvar_cliente = ctk.CTkButton(frame_botoes, text="Salvar Cliente", width=150, height=35, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.salvar_associacao_cliente_thread)
+        self.btn_salvar_cliente.pack(side="left", padx=10)
+        
+        self.clientes_list = []
+        self.clientes_map = {}
+
+    def carregar_clientes_na_view(self):
+        threading.Thread(target=lambda: asyncio.run(self.buscar_clientes_view_async()), daemon=True).start()
+
+    async def buscar_clientes_view_async(self):
+        url = f"{AppConfig.get_server_url()}/api/v1/clientes/"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, timeout=5.0)
+                if response.status_code == 200:
+                    self.clientes_list = response.json()
+                    self.clientes_map = {c["nome"]: c["id"] for c in self.clientes_list}
+                    nomes = list(self.clientes_map.keys())
+                    self.after(0, lambda: self.atualizar_combobox_view(nomes))
+                else:
+                    self.after(0, lambda: messagebox.showerror("Erro", f"Erro ao buscar clientes: {response.status_code}"))
+        except Exception as e:
+            self.after(0, lambda: messagebox.showerror("Erro de Conexão", f"Falha de rede ao buscar clientes: {e}"))
+
+    def atualizar_combobox_view(self, nomes):
+        self.combo_clientes.configure(values=nomes)
+        current_client = AppConfig.get_cliente_nome()
+        if current_client in nomes:
+            self.combo_clientes.set(current_client)
+        elif nomes:
+            self.combo_clientes.set(nomes[0])
+
+    def salvar_associacao_cliente_thread(self):
+        selected_name = self.combo_clientes.get()
+        selected_id = self.clientes_map.get(selected_name)
+        if not selected_id:
+            messagebox.showerror("Erro", "Selecione um cliente válido.")
+            return
+
+        self.btn_salvar_cliente.configure(state="disabled", text="Salvando...")
+        threading.Thread(target=lambda: asyncio.run(self.salvar_associacao_cliente_async(selected_name, selected_id)), daemon=True).start()
+
+    async def salvar_associacao_cliente_async(self, name, cid):
+        url = f"{AppConfig.get_server_url()}/api/v1/agente/vincular/"
+        payload = {
+            "agent_id": get_agent_id(),
+            "cliente_id": cid
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, timeout=10.0)
+                if response.status_code == 200:
+                    AppConfig.update_cliente(name, cid)
+                    self.after(0, self.tratar_sucesso_vinculo_view)
+                else:
+                    self.after(0, lambda: self.tratar_erro_vinculo_view(f"Erro ao salvar: Código {response.status_code}"))
+        except Exception as e:
+            self.after(0, lambda: self.tratar_erro_vinculo_view(f"Erro de conexão: {e}"))
+
+    def tratar_sucesso_vinculo_view(self):
+        messagebox.showinfo("Sucesso", f"Agente vinculado ao cliente com sucesso!\nCliente: {AppConfig.get_cliente_nome()}")
+        self.btn_salvar_cliente.configure(state="normal", text="Salvar Cliente")
+        self.lbl_cliente_associado.configure(text=f"Cliente Monitorado: {AppConfig.get_cliente_nome()}")
+        self.show_view("dashboard")
+        self.disparar_coleta()
+
+    def tratar_erro_vinculo_view(self, msg):
+        messagebox.showerror("Erro", msg)
+        self.btn_salvar_cliente.configure(state="normal", text="Salvar Cliente")
+
+    def init_view_login(self):
+        self.view_login = ctk.CTkFrame(self.frame_content, fg_color="#111218", border_color="#1d1e26", border_width=1, corner_radius=12)
+        container = ctk.CTkFrame(self.view_login, fg_color="transparent")
+        container.pack(expand=True)
+        
+        lbl_titulo = ctk.CTkLabel(container, text="AUTENTICAÇÃO DO TÉCNICO", font=("Inter", 16, "bold"), text_color="#ffffff")
+        lbl_titulo.pack(pady=(0, 20))
+
+        self.entry_user = ctk.CTkEntry(container, width=300, height=38, placeholder_text="Usuário", fg_color="#181920", border_color="#282933", text_color="#ffffff")
+        self.entry_user.pack(pady=8)
+
+        self.entry_pass = ctk.CTkEntry(container, width=300, height=38, placeholder_text="Senha", show="*", fg_color="#181920", border_color="#282933", text_color="#ffffff")
+        self.entry_pass.pack(pady=8)
+
+        frame_botoes = ctk.CTkFrame(container, fg_color="transparent")
+        frame_botoes.pack(pady=(15, 10))
+
+        btn_cancelar = ctk.CTkButton(frame_botoes, text="Voltar ao Dashboard", width=140, height=35, fg_color="#4b5563", hover_color="#374151", font=("Inter", 11, "bold"), command=lambda: self.show_view("dashboard"))
+        btn_cancelar.pack(side="left", padx=8)
+
+        self.btn_entrar = ctk.CTkButton(frame_botoes, text="Entrar", width=140, height=35, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.efetuar_login_thread)
+        self.btn_entrar.pack(side="left", padx=8)
+
+    def efetuar_login_thread(self):
+        username = self.entry_user.get().strip()
+        password = self.entry_pass.get().strip()
+        if not username or not password:
+            messagebox.showerror("Erro", "Preencha todos os campos.")
+            return
+
+        self.btn_entrar.configure(state="disabled", text="Autenticando...")
+        threading.Thread(target=lambda: asyncio.run(self.executar_login_view_async(username, password)), daemon=True).start()
+
+    async def executar_login_view_async(self, username, password):
+        url = f"{AppConfig.get_server_url()}/api/login/"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json={"username": username, "password": password}, timeout=5.0)
+                if response.status_code == 200:
+                    data = response.json()
+                    Session.is_authenticated = True
+                    Session.token = data.get("token")
+                    self.after(0, self.tratar_sucesso_login_view)
+                elif response.status_code in (401, 403):
+                    self.after(0, lambda: self.tratar_erro_login_view("Credenciais inválidas. Verifique seu usuário e senha."))
+                else:
+                    self.after(0, lambda: self.tratar_erro_login_view(f"Erro no servidor: Código {response.status_code}"))
+        except Exception as e:
+            self.after(0, lambda: self.tratar_erro_login_view(f"Falha de conexão com o servidor: {e}"))
+
+    def tratar_sucesso_login_view(self):
+        messagebox.showinfo("Sucesso", "Autenticação realizada com sucesso!")
+        self.btn_entrar.configure(state="normal", text="Entrar")
+        self.entry_user.delete(0, "end")
+        self.entry_pass.delete(0, "end")
+        self.atualizar_botoes_auth()
+        self.show_view("dashboard")
+
+    def tratar_erro_login_view(self, msg):
+        messagebox.showerror("Erro de Login", msg)
+        self.btn_entrar.configure(state="normal", text="Entrar")
+
+    def init_view_gerenciamento(self):
+        self.view_gerenciamento = ctk.CTkFrame(self.frame_content, fg_color="transparent")
+        
         self.impressora_editando_id = None
         self.dados_servidor = None
         self.perfis_cache = {}
 
-        # Formulário Superior
-        self.frame_form = ctk.CTkFrame(self, fg_color="#111218", border_color="#1d1e26", border_width=1)
-        self.frame_form.pack(fill="x", padx=20, pady=20)
+        self.frame_info_agente = ctk.CTkFrame(self.view_gerenciamento, fg_color="#064e3b", border_color="#10b981", border_width=1, corner_radius=8)
+        self.frame_info_agente.pack(fill="x", padx=20, pady=(5, 0))
+        
+        lbl_info = ctk.CTkLabel(
+            self.frame_info_agente,
+            text=f"Orquestração Centralizada Ativa • ID do Agente: {get_agent_id()}\nAs impressoras devem ser cadastradas e associadas a este agente no painel administrativo do Django.",
+            font=("Inter", 11, "bold"),
+            text_color="#34d399",
+            justify="center"
+        )
+        lbl_info.pack(pady=10)
+
+        self.frame_form = ctk.CTkFrame(self.view_gerenciamento, fg_color="#111218", border_color="#1d1e26", border_width=1)
+        self.frame_form.pack(fill="x", padx=20, pady=(10, 15))
 
         self.lbl_form = ctk.CTkLabel(self.frame_form, text="ADICIONAR / EDITAR DISPOSITIVO", font=("Inter", 11, "bold"), text_color="#94a3b8")
         self.lbl_form.grid(row=0, column=0, columnspan=5, padx=15, pady=(10, 5), sticky="w")
 
-        # PASSO 1: Número de Série e Busca
         self.entry_serial = ctk.CTkEntry(self.frame_form, placeholder_text="Número de Série (Ex: CANON_MB5410_REC)", width=250, fg_color="#181920", border_color="#282933")
         self.entry_serial.grid(row=1, column=0, padx=10, pady=10, sticky="w")
 
         self.btn_buscar = ctk.CTkButton(self.frame_form, text="Buscar no Servidor", width=150, fg_color="#3b82f6", hover_color="#1d4ed8", font=("Inter", 11, "bold"), command=self.buscar_no_servidor_thread)
         self.btn_buscar.grid(row=1, column=1, padx=10, pady=10, sticky="w")
 
-        # PASSO 2: Dados locais de rede com Combobox para selecionar o Perfil de OIDs (Marca)
         self.frame_passo2 = ctk.CTkFrame(self.frame_form, fg_color="transparent")
         
         self.entry_nome = ctk.CTkEntry(self.frame_passo2, placeholder_text="Setor / Nome Local", width=180, fg_color="#181920", border_color="#282933")
@@ -280,12 +762,10 @@ class JanelaGerenciamento(ctk.CTkToplevel):
         self.btn_salvar = ctk.CTkButton(self.frame_passo2, text="Salvar", width=90, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.salvar_impressora)
         self.btn_salvar.grid(row=0, column=3, padx=4, pady=10, sticky="w")
 
-        # Lista de Dispositivos Atual
-        ctk.CTkLabel(self, text="DISPOSITIVOS CADASTRADOS", font=("Inter", 12, "bold"), text_color="#ffffff").pack(anchor="w", padx=20, pady=(10, 5))
+        ctk.CTkLabel(self.view_gerenciamento, text="DISPOSITIVOS CADASTRADOS (CACHE LOCAL)", font=("Inter", 12, "bold"), text_color="#ffffff").pack(anchor="w", padx=20, pady=(5, 5))
         
-        # Footer com botões de Exportar e Importar
-        self.frame_footer = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_footer.pack(side="bottom", fill="x", padx=20, pady=(10, 20))
+        self.frame_footer = ctk.CTkFrame(self.view_gerenciamento, fg_color="transparent")
+        self.frame_footer.pack(side="bottom", fill="x", padx=20, pady=(10, 15))
         
         self.btn_exportar = ctk.CTkButton(self.frame_footer, text="Exportar Configurações", width=160, height=30, fg_color="#374151", hover_color="#1f2937", font=("Inter", 11, "bold"), command=self.exportar_configuracoes)
         self.btn_exportar.pack(side="left", padx=(0, 10))
@@ -293,223 +773,207 @@ class JanelaGerenciamento(ctk.CTkToplevel):
         self.btn_importar = ctk.CTkButton(self.frame_footer, text="Importar Configurações", width=160, height=30, fg_color="#374151", hover_color="#1f2937", font=("Inter", 11, "bold"), command=self.importar_configuracoes)
         self.btn_importar.pack(side="left")
         
-        self.scroll_lista = ctk.CTkScrollableFrame(self, fg_color="#111218", border_color="#1d1e26", border_width=1)
-        self.scroll_lista.pack(fill="both", expand=True, padx=20, pady=(0, 10))
+        self.scroll_lista = ctk.CTkScrollableFrame(self.view_gerenciamento, fg_color="#111218", border_color="#1d1e26", border_width=1)
+        self.scroll_lista.pack(fill="both", expand=True, padx=20, pady=(0, 5))
         
-        self.atualizar_lista_dispositivos()
-        self.carregar_perfis_servidor_thread()
-
-    def carregar_perfis_servidor_thread(self):
-        threading.Thread(target=lambda: asyncio.run(self.executar_busca_perfis_async()), daemon=True).start()
-
-    async def executar_busca_perfis_async(self):
-        url = f"{AppConfig.get_server_url()}/api/printer/search/"
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(url, timeout=5.0)
-                if response.status_code == 200:
-                    data = response.json()
-                    perfis = data.get("perfis", [])
-                    self.perfis_cache = {p["nome_perfil"]: p["oids"] for p in perfis}
-                    valores = list(self.perfis_cache.keys())
-                    
-                    # Garantir que existam defaults
-                    for extra in ["Canon Padrão", "Epson Padrão"]:
-                        if extra not in self.perfis_cache:
-                            self.perfis_cache[extra] = {}
-                            valores.append(extra)
-                            
-                    self.after(0, lambda: self.atualizar_combobox_perfis(valores))
-                else:
-                    self.after(0, lambda: self.atualizar_combobox_perfis(["Canon Padrão", "Epson Padrão"]))
-        except Exception:
-            self.after(0, lambda: self.atualizar_combobox_perfis(["Canon Padrão", "Epson Padrão"]))
-
-    def atualizar_combobox_perfis(self, valores):
-        self.combo_perfil_oid.configure(values=valores)
-        if valores:
-            self.combo_perfil_oid.set(valores[0])
+        threading.Thread(target=lambda: asyncio.run(self.carregar_perfis_oid_async()), daemon=True).start()
+        
+        self.atualizar_lista_gerenciamento()
 
     def buscar_no_servidor_thread(self):
         serial = self.entry_serial.get().strip()
         if not serial:
-            messagebox.showerror("Erro", "Por favor, digite o Número de Série da impressora.")
+            messagebox.showerror("Erro", "Insira um número de série.")
             return
-        
-        self.btn_buscar.configure(state="disabled", text="Buscando...")
-        threading.Thread(target=lambda: asyncio.run(self.executar_busca_async(serial)), daemon=True).start()
 
-    async def executar_busca_async(self, serial):
+        self.btn_buscar.configure(state="disabled", text="Buscando...")
+        threading.Thread(target=lambda: asyncio.run(self.executar_busca_servidor_async(serial)), daemon=True).start()
+
+    async def executar_busca_servidor_async(self, serial):
         url = f"{AppConfig.get_server_url()}/api/printer/search/"
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(url, params={"serial": serial}, timeout=5.0)
-                
-                if response.status_code == 404:
-                    self.after(0, lambda: self.tratar_erro_busca("Esta impressora não está pré-cadastrada no painel administrativo do servidor."))
-                elif response.status_code != 200:
-                    self.after(0, lambda: self.tratar_erro_busca(f"Erro no servidor: Código {response.status_code}"))
-                else:
+                if response.status_code == 200:
                     data = response.json()
                     self.after(0, lambda: self.tratar_sucesso_busca(data))
+                else:
+                    self.after(0, lambda: self.tratar_erro_busca(f"Impressora não localizada no servidor: {response.status_code}"))
         except Exception as e:
-            self.after(0, lambda: self.tratar_erro_busca(f"Falha de conexão com o servidor: {e}"))
-
-    def tratar_erro_busca(self, mensagem):
-        messagebox.showerror("Dispositivo Não Encontrado", mensagem)
-        self.btn_buscar.configure(state="normal", text="Buscar no Servidor")
-        self.frame_passo2.grid_forget()
-        self.dados_servidor = None
+            self.after(0, lambda: self.tratar_erro_busca(f"Erro de rede: {e}"))
 
     def tratar_sucesso_busca(self, data):
         self.btn_buscar.configure(state="normal", text="Buscar no Servidor")
         self.dados_servidor = data
+        self.entry_nome.delete(0, "end")
+        self.entry_nome.insert(0, data.get("nome_local", ""))
+        self.entry_ip.delete(0, "end")
+        self.entry_ip.insert(0, data.get("ip_address", ""))
         
-        # Habilita o passo 2 no grid do formulário
-        self.frame_passo2.grid(row=2, column=0, columnspan=5, padx=10, pady=(10, 0), sticky="w")
+        self.frame_passo2.pack(fill="x", padx=20, pady=(0, 10))
         
-        # 1. Pega o Nome/Modelo da impressora via API
-        modelo_sugerido = data.get("modelo") or data.get("marca") or ""
-        self.entry_nome.delete(0, 'end')
-        self.entry_nome.insert(0, modelo_sugerido)
+        perfil = data.get("nome_perfil", "")
+        if perfil:
+            self.combo_perfil_oid.set(perfil)
+        
+        messagebox.showinfo("Sucesso", f"Impressora localizada!\nMarca: {data.get('marca')}\nModelo: {data.get('modelo')}")
 
-        # 2. Pega a Marca e o Perfil de OID do servidor
-        marca_detectada = data.get("marca", "")
-        perfil_detectado = data.get("nome_perfil", "")
-        
-        # Verifica se o perfil existe no cache e o seleciona
-        if perfil_detectado in self.perfis_cache:
-            self.combo_perfil_oid.set(perfil_detectado)
-        else:
-            match_found = False
-            for k in self.perfis_cache.keys():
-                if k.lower() == perfil_detectado.lower() or k.lower() == marca_detectada.lower():
-                    self.combo_perfil_oid.set(k)
-                    match_found = True
+    def tratar_erro_busca(self, msg):
+        self.btn_buscar.configure(state="normal", text="Buscar no Servidor")
+        messagebox.showerror("Erro", msg)
+
+    async def carregar_perfis_oid_async(self):
+        url = f"{AppConfig.get_server_url()}/api/perfis-oid/listar/"
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, timeout=5.0)
+                if response.status_code == 200:
+                    perfis = response.json()
+                    self.perfis_cache = {p["nome"]: p for p in perfis}
+                    nomes = list(self.perfis_cache.keys())
+                    self.after(0, lambda: self.atualizar_combobox_perfis(nomes))
+                else:
+                    self.after(0, lambda: self.combo_perfil_oid.configure(values=["Erro ao carregar"]))
+        except Exception:
+            self.after(0, lambda: self.combo_perfil_oid.configure(values=["Erro de rede"]))
+
+    def atualizar_combobox_perfis(self, nomes):
+        self.combo_perfil_oid.configure(values=nomes)
+        if nomes:
+            self.combo_perfil_oid.set(nomes[0])
+
+    def salvar_impressora(self):
+        state_orig = self.entry_serial.cget("state")
+        self.entry_serial.configure(state="normal")
+        serial = self.entry_serial.get().strip()
+        self.entry_serial.configure(state=state_orig)
+
+        nome = self.entry_nome.get().strip()
+        ip = self.entry_ip.get().strip()
+        perfil = self.combo_perfil_oid.get()
+
+        if not serial or not nome or not ip:
+            messagebox.showerror("Erro", "Preencha todos os campos do Passo 2.")
+            return
+
+        perfil_dados = self.perfis_cache.get(perfil, {})
+        oids = perfil_dados.get("oids", {})
+
+        if self.impressora_editando_id:
+            confirm = messagebox.askyesno(
+                "Confirmar Alterações",
+                f"Tem certeza de que deseja salvar as alterações para a impressora?\n\n"
+                f"• Número de Série: {serial}\n"
+                f"• Nome/Setor: {nome}\n"
+                f"• IP: {ip}\n"
+                f"• Perfil OID: {perfil}"
+            )
+            if not confirm:
+                return
+
+            for imp in self.impressoras_cadastradas:
+                if imp["id"] == self.impressora_editando_id:
+                    imp["nome"] = nome
+                    imp["ip"] = ip
+                    imp["serial_inicial"] = serial
+                    imp["perfil_oid"] = perfil
+                    imp["oids"] = oids
+                    if self.dados_servidor:
+                        imp["marca"] = self.dados_servidor.get("marca", imp.get("marca", "Canon"))
+                        imp["modelo"] = self.dados_servidor.get("modelo", imp.get("modelo", "Generic"))
                     break
-            if not match_found:
-                self.perfis_cache[perfil_detectado] = data.get("oids", {})
-                valores_atuais = list(self.combo_perfil_oid.cget("values"))
-                if perfil_detectado not in valores_atuais:
-                    valores_atuais.append(perfil_detectado)
-                    self.combo_perfil_oid.configure(values=valores_atuais)
-                self.combo_perfil_oid.set(perfil_detectado)
-            
-        messagebox.showinfo("Sucesso", f"Impressora cadastrada encontrada!\nMarca: {data.get('marca')} | Modelo: {data.get('modelo')} | Perfil: {data.get('nome_perfil')}")
+            self.impressora_editando_id = None
+            self.btn_salvar.configure(text="Salvar")
+        else:
+            if any(imp["ip"] == ip for imp in self.impressoras_cadastradas):
+                messagebox.showerror("Erro", "Já existe uma impressora com este IP Address.")
+                return
 
-    def atualizar_lista_dispositivos(self):
+            confirm = messagebox.askyesno(
+                "Confirmar Cadastro",
+                f"Tem certeza de que deseja cadastrar este novo dispositivo?\n\n"
+                f"• Número de Série: {serial}\n"
+                f"• Nome/Setor: {nome}\n"
+                f"• IP: {ip}\n"
+                f"• Perfil OID: {perfil}"
+            )
+            if not confirm:
+                return
+
+            marca = "Canon"
+            modelo = "Generic"
+            if self.dados_servidor:
+                marca = self.dados_servidor.get("marca", "Canon")
+                modelo = self.dados_servidor.get("modelo", "Generic")
+
+            nova = {
+                "id": ip,
+                "nome": nome,
+                "ip": ip,
+                "serial_inicial": serial,
+                "marca": marca,
+                "modelo": modelo,
+                "perfil_oid": perfil,
+                "oids": oids
+            }
+            self.impressoras_cadastradas.append(nova)
+
+        salvar_no_json(self.impressoras_cadastradas)
+        self.entry_serial.configure(state="normal")
+        self.entry_serial.delete(0, "end")
+        self.entry_nome.delete(0, "end")
+        self.entry_ip.delete(0, "end")
+        self.dados_servidor = None
+
+        self.atualizar_lista_gerenciamento()
+        self.reconstruir_cards_dashboard()
+        messagebox.showinfo("Sucesso", "Dispositivo gravado com sucesso no cache local!")
+
+    def atualizar_lista_gerenciamento(self):
         for widget in self.scroll_lista.winfo_children():
             widget.destroy()
 
-        for imp in self.master_app.impressoras_cadastradas:
-            f_linha = ctk.CTkFrame(self.scroll_lista, fg_color="#181920", height=45)
-            f_linha.pack(fill="x", padx=5, pady=4)
-            f_linha.pack_propagate(False)
+        for imp in self.impressoras_cadastradas:
+            linha = ctk.CTkFrame(self.scroll_lista, fg_color="transparent")
+            linha.pack(fill="x", padx=10, pady=5)
 
-            info_txt = f"{imp['nome']}  •  {imp['ip']}  ({imp['modelo']})  •  Série: {imp['serial_inicial']}"
-            ctk.CTkLabel(f_linha, text=info_txt, font=("Inter", 12), text_color="#ffffff").pack(side="left", padx=15)
+            ctk.CTkLabel(linha, text=f"{imp['nome']} - {imp['modelo']} ({imp['ip']})", font=("Inter", 11), text_color="#ffffff").pack(side="left")
 
-            btn_del = ctk.CTkButton(f_linha, text="Excluir", width=65, height=26, fg_color="#f87171", hover_color="#b91c1c", text_color="#ffffff", font=("Inter", 10, "bold"), command=lambda idx=imp['id']: self.remover(idx))
-            btn_del.pack(side="right", padx=10)
+            btn_del = ctk.CTkButton(linha, text="Remover", width=70, height=24, fg_color="#ef4444", hover_color="#dc2626", font=("Inter", 10, "bold"), command=lambda i=imp["id"]: self.deletar_impressora(i))
+            btn_del.pack(side="right", padx=5)
 
-            btn_edit = ctk.CTkButton(f_linha, text="Editar", width=65, height=26, fg_color="#3b82f6", hover_color="#1d4ed8", text_color="#ffffff", font=("Inter", 10, "bold"), command=lambda dados=imp: self.carregar_edicao(dados))
-            btn_edit.pack(side="right", padx=2)
+            btn_edit = ctk.CTkButton(linha, text="Editar", width=70, height=24, fg_color="#3b82f6", hover_color="#1d4ed8", font=("Inter", 10, "bold"), command=lambda i=imp: self.editar_impressora(i))
+            btn_edit.pack(side="right")
 
-    def carregar_edicao(self, dados):
-        self.impressora_editando_id = dados["id"]
-        self.entry_serial.delete(0, 'end')
-        self.entry_serial.insert(0, dados["serial_inicial"])
+    def deletar_impressora(self, id_imp):
+        imp_obj = next((i for i in self.impressoras_cadastradas if i["id"] == id_imp), None)
+        nome_imp = imp_obj["nome"] if imp_obj else id_imp
         
-        self.entry_nome.delete(0, 'end')
-        self.entry_nome.insert(0, dados["nome"])
-        
-        self.entry_ip.delete(0, 'end')
-        self.entry_ip.insert(0, dados["ip"])
-        
-        self.dados_servidor = {
-            "serial_number": dados["serial_inicial"],
-            "modelo": dados["modelo"],
-            "marca": dados.get("marca", "Generic"),
-            "nome_perfil": dados.get("perfil_oid", "Generic"),
-            "oids": dados.get("oids", {})
-        }
-        
-        self.frame_passo2.grid(row=2, column=0, columnspan=5, padx=10, pady=(10, 0), sticky="w")
-        self.combo_perfil_oid.set(dados.get("perfil_oid", "Generic"))
-        self.btn_salvar.configure(text="Atualizar", fg_color="#f59e0b", hover_color="#d97706")
-
-    def salvar_impressora(self):
-        nome = self.entry_nome.get().strip()
-        ip = self.entry_ip.get().strip()
-        serial = self.entry_serial.get().strip()
-        perfil_selecionado = self.combo_perfil_oid.get()
-
-        if not nome or not ip or not serial:
-            messagebox.showerror("Erro", "Por favor, preencha todos os campos do formulário.")
+        confirm = messagebox.askyesno(
+            "Confirmar Remoção",
+            f"Tem certeza de que deseja remover a impressora '{nome_imp}' ({id_imp}) do cache local?"
+        )
+        if not confirm:
             return
 
-        if not self.dados_servidor:
-            messagebox.showerror("Erro", "É necessário buscar o número de série no servidor primeiro.")
-            return
+        self.impressoras_cadastradas = [i for i in self.impressoras_cadastradas if i["id"] != id_imp]
+        salvar_no_json(self.impressoras_cadastradas)
+        self.atualizar_lista_gerenciamento()
+        self.reconstruir_cards_dashboard()
 
-        for imp in self.master_app.impressoras_cadastradas:
-            if imp["serial_inicial"].strip().lower() == serial.lower() and imp["id"] != self.impressora_editando_id:
-                messagebox.showerror(
-                    title="Dispositivo Duplicado",
-                    message=f"Erro: Já existe uma impressora cadastrada com o Número de Série '{serial}' no setor '{imp['nome']}'."
-                )
-                return
-
-        oids = {}
-        if self.perfis_cache and perfil_selecionado in self.perfis_cache and self.perfis_cache[perfil_selecionado]:
-            oids = self.perfis_cache[perfil_selecionado]
-        else:
-            oids = self.dados_servidor.get("oids") or {}
-
-        modelo = self.dados_servidor.get("modelo") or self.dados_servidor.get("model") or "Generic"
-        marca = self.dados_servidor.get("marca") or "Generic"
-
-        payload = {
-            "id": serial,
-            "nome": nome,
-            "ip": ip,
-            "modelo": modelo,
-            "marca": marca,
-            "perfil_oid": perfil_selecionado,
-            "serial_inicial": serial,
-            "oids": oids
-        }
-
-        if self.impressora_editando_id is not None:
-            # Editando existente
-            for imp in self.master_app.impressoras_cadastradas:
-                if imp["id"] == self.impressora_editando_id:
-                    payload["id"] = serial
-                    imp.clear()
-                    imp.update(payload)
-                    break
-            self.impressora_editando_id = None
-            self.btn_salvar.configure(text="Salvar", fg_color="#10b981", hover_color="#059669")
-        else:
-            self.master_app.impressoras_cadastradas.append(payload)
-
-        # Salva alterações persistentemente no JSON
-        salvar_no_json(self.master_app.impressoras_cadastradas)
-
-        self.entry_nome.delete(0, 'end')
-        self.entry_ip.delete(0, 'end')
-        self.entry_serial.delete(0, 'end')
-        self.frame_passo2.grid_forget()
-        self.dados_servidor = None
-
-        self.atualizar_lista_dispositivos()
-        self.master_app.reconstruir_cards_dashboard()
-
-    def remover(self, id_imp):
-        self.master_app.impressoras_cadastradas = [i for i in self.master_app.impressoras_cadastradas if i["id"] != id_imp]
-        salvar_no_json(self.master_app.impressoras_cadastradas)
-        self.atualizar_lista_dispositivos()
-        self.master_app.reconstruir_cards_dashboard()
+    def editar_impressora(self, imp):
+        self.impressora_editando_id = imp["id"]
+        self.entry_serial.configure(state="normal")
+        self.entry_serial.delete(0, "end")
+        self.entry_serial.insert(0, imp.get("serial_inicial", ""))
+        self.entry_serial.configure(state="disabled")
+        self.entry_nome.delete(0, "end")
+        self.entry_nome.insert(0, imp.get("nome", ""))
+        self.entry_ip.delete(0, "end")
+        self.entry_ip.insert(0, imp.get("ip", ""))
+        if imp.get("perfil_oid"):
+            self.combo_perfil_oid.set(imp["perfil_oid"])
+        self.btn_salvar.configure(text="Atualizar")
 
     def exportar_configuracoes(self):
         from tkinter import filedialog
@@ -523,7 +987,7 @@ class JanelaGerenciamento(ctk.CTkToplevel):
             
         try:
             url = AppConfig.get_api_url()
-            impressoras = self.master_app.impressoras_cadastradas
+            impressoras = self.impressoras_cadastradas
             
             data = {
                 "version": "1.0",
@@ -556,98 +1020,14 @@ class JanelaGerenciamento(ctk.CTkToplevel):
                 return
                 
             AppConfig.update(data["django_api_url"])
-            self.master_app.impressoras_cadastradas = data["impressoras"]
-            salvar_no_json(self.master_app.impressoras_cadastradas)
+            self.impressoras_cadastradas = data["impressoras"]
+            salvar_no_json(self.impressoras_cadastradas)
             
-            self.atualizar_lista_dispositivos()
-            self.master_app.reconstruir_cards_dashboard()
+            self.atualizar_lista_gerenciamento()
+            self.reconstruir_cards_dashboard()
             messagebox.showinfo("Sucesso", "Configurações importadas com sucesso!")
         except Exception as e:
             messagebox.showerror("Erro", f"Falha ao importar configurações: {e}")
-
-
-class DashboardFinal(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-
-        self.title("PRISMA - Monitoramento Local Avançado")
-        self.geometry("1350x850")
-        self.configure(fg_color="#090a0f")
-
-        self.impressoras_cadastradas = carregar_do_json()
-        self.cards_ui = {}
-        self.timer_job = None
-        
-        self.protocol("WM_DELETE_WINDOW", self.minimizar_para_tray)
-
-        # --- TOP CONTAINER ---
-        self.frame_top = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_top.pack(fill="x", padx=35, pady=(25, 10))
-
-        self.frame_titulos = ctk.CTkFrame(self.frame_top, fg_color="transparent")
-        self.frame_titulos.pack(side="left")
-        
-        self.lbl_titulo = ctk.CTkLabel(self.frame_titulos, text="Métricas das Impressoras", font=("Inter", 24, "bold"), text_color="#ffffff")
-        self.lbl_titulo.pack(anchor="w")
-        self.lbl_sub = ctk.CTkLabel(self.frame_titulos, text="Gerenciamento multiescala de tempo e pooling dinâmico via SNMP", font=("Inter", 12), text_color="#94a3b8")
-        self.lbl_sub.pack(anchor="w", pady=(2, 0))
-
-        # --- PAINEL DE CONFIGURAÇÃO DE TEMPO MÚLTIPLO ---
-        self.frame_config_tempo = ctk.CTkFrame(self.frame_top, fg_color="#111218", corner_radius=8, border_color="#1d1e26", border_width=1, height=45)
-        self.frame_config_tempo.pack(side="right", padx=(15, 0))
-
-        ctk.CTkLabel(self.frame_config_tempo, text="Auto-atualizar:", font=("Inter", 11, "bold"), text_color="#94a3b8").pack(side="left", padx=(10, 5))
-        self.entry_tempo = ctk.CTkEntry(self.frame_config_tempo, width=45, height=28, fg_color="#181920", border_color="#282933", text_color="#ffffff", justify="center")
-        self.entry_tempo.insert(0, "30")
-        self.entry_tempo.pack(side="left", padx=2)
-
-        self.combo_unidade = ctk.CTkComboBox(self.frame_config_tempo, values=["Segundos", "Minutos", "Horas"], width=100, height=28, fg_color="#181920", border_color="#282933")
-        self.combo_unidade.set("Segundos")
-        self.combo_unidade.pack(side="left", padx=4)
-
-        self.btn_aplicar_tempo = ctk.CTkButton(self.frame_config_tempo, text="Agendar", width=65, height=28, fg_color="#181920", hover_color="#282933", text_color="#ffffff", font=("Inter", 11, "bold"), command=self.configurar_automacao)
-        self.btn_aplicar_tempo.pack(side="left", padx=(2, 10))
-
-        # Botão para abrir Nova Tela de Cadastro
-        self.btn_tela_cadastro = ctk.CTkButton(self.frame_top, text="+ Gerenciar Impressoras", width=155, height=32, fg_color="#10b981", hover_color="#059669", font=("Inter", 11, "bold"), command=self.abrir_gerenciador)
-        self.btn_tela_cadastro.pack(side="right", padx=6)
-
-        # Botão para abrir Tela de Configuração do Servidor
-        self.btn_config_servidor = ctk.CTkButton(self.frame_top, text="⚙ Configurar Servidor", width=145, height=32, fg_color="#4b5563", hover_color="#374151", font=("Inter", 11, "bold"), command=self.abrir_config_servidor)
-        self.btn_config_servidor.pack(side="right", padx=6)
-
-
-
-        # Botão para Login / Logout
-        self.btn_auth = ctk.CTkButton(self.frame_top, text="Fazer Login", width=110, height=32, fg_color="#3b82f6", hover_color="#2563eb", font=("Inter", 11, "bold"), command=self.alternar_auth)
-        self.btn_auth.pack(side="right", padx=6)
-
-        self.btn_atualizar = ctk.CTkButton(self.frame_top, text="Forçar Atualização", width=135, height=32, fg_color="#181920", hover_color="#282933", text_color="#ffffff", font=("Inter", 11, "bold"), command=self.disparar_coleta)
-        self.btn_atualizar.pack(side="right")
-
-        # --- CONTAINER DE KPIs ---
-        self.frame_kpis = ctk.CTkFrame(self, fg_color="transparent")
-        self.frame_kpis.pack(fill="x", padx=35, pady=10)
-        self.frame_kpis.columnconfigure((0, 1, 2, 3), weight=1, uniform="kpi")
-        
-        self.kpi_total = self.card_kpi(self.frame_kpis, 0, "TOTAL IMPRESSORAS", "0", "🖨️")
-        self.kpi_online = self.card_kpi(self.frame_kpis, 1, "ONLINE", "0", "✓", cor_val="#10b981")
-        self.kpi_offline = self.card_kpi(self.frame_kpis, 2, "OFFLINE / INATIVAS", "0", "⚠", cor_val="#f87171")
-        self.kpi_alerta_toner = self.card_kpi(self.frame_kpis, 3, "SUPRIMENTOS < 15%", "0", "⚡", cor_val="#f59e0b")
-
-        # --- SEÇÃO DE GRID ROLÁVEL ---
-        self.frame_scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.frame_scroll.pack(fill="both", expand=True, padx=35, pady=(5, 20))
-        
-        self.frame_grid_dispositivos = ctk.CTkFrame(self.frame_scroll, fg_color="transparent")
-        self.frame_grid_dispositivos.pack(fill="both", expand=True)
-        for i in range(4):
-            self.frame_grid_dispositivos.columnconfigure(i, weight=1, minsize=290)
-
-        self.reconstruir_cards_dashboard()
-        self.configurar_automacao()
-        self.atualizar_botoes_auth()
-        self.iniciar_tray_icon()
 
     def card_kpi(self, pai, col, titulo, valor, icone, cor_val="#ffffff"):
         f = ctk.CTkFrame(pai, fg_color="#111218", corner_radius=10, border_color="#1d1e26", border_width=1, height=85)
@@ -661,49 +1041,9 @@ class DashboardFinal(ctk.CTk):
         lbl_i.pack(side="right", padx=15, pady=(0, 10))
         return lbl_v
 
-    def abrir_gerenciador(self):
-        if not Session.is_authenticated:
-            self.abrir_login(self.abrir_gerenciador)
-        else:
-            JanelaGerenciamento(self)
 
-    def abrir_config_servidor(self):
-        JanelaConfigServidor(self)
 
-    def alternar_auth(self):
-        if Session.is_authenticated:
-            self.desconectar_usuario()
-        else:
-            self.abrir_login()
-
-    def abrir_login(self, on_success=None):
-        JanelaLogin(self, on_success)
-
-    def desconectar_usuario(self):
-        Session.is_authenticated = False
-        Session.token = None
-        messagebox.showinfo("Logout", "Você foi desconectado.")
-        self.atualizar_botoes_auth()
-
-    def atualizar_botoes_auth(self):
-        self.btn_tela_cadastro.pack_forget()
-        self.btn_config_servidor.pack_forget()
-        self.btn_auth.pack_forget()
-        self.btn_atualizar.pack_forget()
-
-        if Session.is_authenticated:
-            self.btn_tela_cadastro.pack(side="right", padx=6)
-            self.btn_config_servidor.pack(side="right", padx=6)
-            self.btn_auth.configure(text="Desconectar", fg_color="#ef4444", hover_color="#dc2626")
-            self.btn_auth.pack(side="right", padx=6)
-            self.btn_atualizar.pack(side="right")
-        else:
-            self.btn_config_servidor.pack(side="right", padx=6)
-            self.btn_auth.configure(text="Fazer Login", fg_color="#3b82f6", hover_color="#2563eb")
-            self.btn_auth.pack(side="right", padx=6)
-            self.btn_atualizar.pack(side="right")
-
-    def reconstruir_cards_dashboard(self):
+    def reconstruir_cards_dashboard(self, disparar=True):
         for widget in self.frame_grid_dispositivos.winfo_children():
             widget.destroy()
         self.cards_ui.clear()
@@ -721,7 +1061,8 @@ class DashboardFinal(ctk.CTk):
                 self.criar_card_canon_dinamico(imp["id"], imp, row, col)
 
         self.kpi_total.configure(text=str(len(self.impressoras_cadastradas)))
-        self.disparar_coleta()
+        if disparar:
+            self.disparar_coleta()
 
     def criar_card_canon_dinamico(self, id_imp, dados, r, c):
         card = ctk.CTkFrame(self.frame_grid_dispositivos, fg_color="#111218", corner_radius=12, border_color="#1d1e26", border_width=1)
@@ -865,13 +1206,97 @@ class DashboardFinal(ctk.CTk):
         self.timer_job = self.after(tempo_ms, lambda: self.loop_automacao(tempo_ms))
 
     def disparar_coleta(self):
-        if not self.impressoras_cadastradas: 
-            self.recalcular_kpis_globais()
-            return
         self.btn_atualizar.configure(state="disabled", text="Pooling...")
         threading.Thread(target=lambda: asyncio.run(self.executar_todas_coletas_async()), daemon=True).start()
 
     async def executar_todas_coletas_async(self):
+        # 1. Buscar impressoras do servidor (Orquestração Centralizada)
+        agent_id = get_agent_id()
+        url_tasks = f"{AppConfig.get_server_url()}/api/v1/tarefas/"
+        
+        printers_list = []
+        sucesso_busca = False
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url_tasks, params={"agent_id": agent_id}, timeout=10.0)
+                if response.status_code == 200:
+                    printers_list = response.json()
+                    sucesso_busca = True
+                else:
+                    print(f"[Erro API] Falha ao buscar tarefas (Status {response.status_code}): {response.text}")
+        except Exception as e:
+            print(f"[Erro API] Falha de conexão ao buscar tarefas: {e}")
+            
+        if sucesso_busca and isinstance(printers_list, list):
+            seriais_remotos = {
+                p.get("serial_number") or p.get("serial_inicial")
+                for p in printers_list if (p.get("serial_number") or p.get("serial_inicial"))
+            }
+            ips_remotos = {
+                p.get("ip") or p.get("ip_ou_hostname")
+                for p in printers_list if (p.get("ip") or p.get("ip_ou_hostname"))
+            }
+
+            novas_impressoras = []
+
+            # 1. Filtra impressoras que pertencem a este cliente: se foram removidas do cliente no servidor web, remove do agente
+            for existing in self.impressoras_cadastradas:
+                s_exist = existing.get("serial_inicial")
+                ip_exist = existing.get("ip")
+
+                if AppConfig.get_cliente_id():
+                    estava_no_servidor = (s_exist in seriais_remotos) or (ip_exist in ips_remotos)
+                    # Se foi desassociada/removida no servidor web, remove também do agente local
+                    if not estava_no_servidor:
+                        continue
+
+                novas_impressoras.append(existing)
+
+            # 2. Adiciona/atualiza impressoras enviadas pelo servidor
+            mapa_novas_serial = {imp.get("serial_inicial"): imp for imp in novas_impressoras if imp.get("serial_inicial")}
+            mapa_novas_ip = {imp.get("ip"): imp for imp in novas_impressoras if imp.get("ip")}
+
+            for p in printers_list:
+                ip = p.get("ip") or p.get("ip_ou_hostname") or ""
+                modelo = p.get("modelo") or "Genérica"
+                serial_number = p.get("serial_number") or p.get("serial_inicial") or (f"MOCK_{ip.replace('.', '_')}" if ip else "NO_SERIAL")
+                nome = p.get("nome") or f"{modelo} ({ip if ip else serial_number})"
+                marca = p.get("marca") or "Generic"
+                perfil_oid = p.get("perfil_oid") or ""
+
+                cache_imp = mapa_novas_serial.get(serial_number) or (mapa_novas_ip.get(ip) if ip else None)
+
+                if cache_imp:
+                    if ip and cache_imp.get("ip") != ip:
+                        cache_imp["ip"] = ip
+                    if modelo and cache_imp.get("modelo") in ("Genérica", "Generic", ""):
+                        cache_imp["modelo"] = modelo
+                    if perfil_oid and not cache_imp.get("perfil_oid"):
+                        cache_imp["perfil_oid"] = perfil_oid
+                else:
+                    nova_entry = {
+                        "id": ip or serial_number,
+                        "nome": nome,
+                        "ip": ip,
+                        "modelo": modelo,
+                        "marca": marca,
+                        "serial_inicial": serial_number,
+                        "perfil_oid": perfil_oid,
+                        "oids": {}
+                    }
+                    novas_impressoras.append(nova_entry)
+                    mapa_novas_serial[serial_number] = nova_entry
+                    if ip:
+                        mapa_novas_ip[ip] = nova_entry
+
+            mudou = (len(novas_impressoras) != len(self.impressoras_cadastradas) or
+                     any(novas_impressoras[i] != self.impressoras_cadastradas[i] for i in range(len(novas_impressoras))))
+
+            if mudou:
+                self.impressoras_cadastradas = novas_impressoras
+                salvar_no_json(self.impressoras_cadastradas)
+                self.after(0, lambda: self.reconstruir_cards_dashboard(disparar=False))
+
         async with httpx.AsyncClient() as client:
             tarefas = []
             for imp in self.impressoras_cadastradas:
@@ -909,7 +1334,7 @@ class DashboardFinal(ctk.CTk):
             salvar_no_json(self.impressoras_cadastradas)
             
         if reconstruir:
-            self.after(0, self.reconstruir_cards_dashboard)
+            self.after(0, lambda: self.reconstruir_cards_dashboard(disparar=False))
             
         self.after(0, lambda: self.btn_atualizar.configure(state="normal", text="Forçar Atualização"))
         self.after(0, self.recalcular_kpis_globais)
@@ -927,7 +1352,19 @@ class DashboardFinal(ctk.CTk):
     async def executar_coleta_dinamica(self, client, imp):
         ip = imp["ip"]
         id_imp = imp["id"]
-        serial_inicial = imp["serial_inicial"]
+        
+        # Tenta obter o Serial Number real via SNMP (OID: 1.3.6.1.2.1.43.5.1.1.17.1)
+        serial_detectado = await snmp_safe_get(ip, "1.3.6.1.2.1.43.5.1.1.17.1", decode=True)
+        
+        # Se falhar ou for N/A, tentamos usar o cache local (serial_inicial) ou gerar um mock
+        if not serial_detectado or serial_detectado == "N/A":
+            serial_detectado = imp.get("serial_inicial")
+            if not serial_detectado or serial_detectado.startswith("MOCK_") or serial_detectado == "N/A":
+                modelo_limpo = imp.get("modelo", "Generic")
+                serial_detectado = f"SIM_{modelo_limpo.upper().replace(' ', '_')}_{ip.replace('.', '_')}"
+                
+        imp["serial_inicial"] = serial_detectado
+        serial_inicial = serial_detectado
         
         # 1. Buscar configurações de OID do Django
         url = f"{AppConfig.get_server_url()}/api/printer/search/"
@@ -948,7 +1385,6 @@ class DashboardFinal(ctk.CTk):
                 perfil_oid = data.get("nome_perfil", perfil_oid)
                 
                 # --- NORMALIZAÇÃO CRUCIAL DE OIDs ---
-                # Garante que as chaves fiquem no formato amigável usado internamente ("toner_atual" em vez de "oid_toner_level")
                 oids = {}
                 mapeamento_chaves = {
                     "oid_toner_level": "toner_atual",
@@ -966,14 +1402,11 @@ class DashboardFinal(ctk.CTk):
                     "oid_mensagem_painel": "mensagem_painel"
                 }
                 
-                # Copia tudo o que já é amigável e depois traduz os que vierem do Django
                 for k, v in oids_raw.items():
                     if k in mapeamento_chaves:
                         oids[mapeamento_chaves[k]] = v
-                    # Mantém os nomes normais caso o Django já os envie padronizados
                     oids[k] = v
 
-                # Garante persistência em memória
                 imp["oids"] = oids
                 
                 if (imp.get("marca") != marca or 
@@ -1030,24 +1463,7 @@ class DashboardFinal(ctk.CTk):
         eh_canon = "canon" in marca_lower or "canon" in modelo_lower
         eh_plotter = "plotter" in marca_lower or "plotter" in modelo_lower
         
-        # Simulação caso esteja offline para Epson
-        if not is_online and eh_epson:
-            is_online = True
-            simulados = {
-                "contador_total": 42500,
-                "contador_a4": 21000,
-                "contador_a3": 19000,
-                "tempo_ligada": 8931200,
-                "N_S": serial_inicial,
-                "mensagem_painel": "Pronta para Impressão",
-                "tinta_preta": 70.0,
-                "tinta_ciano": 95.0,
-                "tinta_magenta": 34.0,
-                "tinta_amarela": 12.0,
-                "caixa_manutencao": 85.0
-            }
-            for k in simulados:
-                resultados[k] = simulados[k]
+        # Sem simulação para impressoras offline, permitindo o fluxo seguro de desconexão.
 
         # 3. Formatar dados coletados
         uptime = formatar_uptime(resultados.get("tempo_ligada", "N/A"))
@@ -1079,8 +1495,6 @@ class DashboardFinal(ctk.CTk):
                 if isinstance(toner_atual, (int, float)) and toner_atual < 0:
                     if toner_atual == -3:
                         pct_toner = 10.0
-                    elif toner_atual == -2:
-                        pct_toner = 100.0
                     else:
                         pct_toner = 0.0
                 elif isinstance(toner_atual, (int, float)) and isinstance(toner_full, (int, float)) and toner_full > 0:
@@ -1090,7 +1504,7 @@ class DashboardFinal(ctk.CTk):
                     # Fallback para tinta preta se toner_atual falhar
                     bk_val = resultados.get("tinta_preta")
                     if bk_val is not None and bk_val != "N/A":
-                        pct_toner = float(bk_val)
+                        pct_toner = max(0.0, float(bk_val))
                     else:
                         pct_toner = 0.0
             except Exception:
@@ -1118,7 +1532,10 @@ class DashboardFinal(ctk.CTk):
                 
             def clean_pct(v):
                 try:
-                    return float(v) if (v != "N/A" and v is not None) else None
+                    if v != "N/A" and v is not None:
+                        val = float(v)
+                        return max(0.0, val)
+                    return None
                 except Exception:
                     return None
                     

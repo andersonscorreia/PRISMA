@@ -79,9 +79,9 @@
                 {% for c in clientes %}
                 <tr class="hover:bg-gray-50/50 dark:hover:bg-zinc-800/30 transition-colors">
                     <td class="px-6 py-4 whitespace-nowrap font-bold text-gray-900 dark:text-white">
-                        <a href="{% url 'historico_cliente' c.id %}" class="hover:text-brand-500 hover:underline">
+                        <span class="font-bold text-gray-900 dark:text-white">
                             {{ c.nome }}
-                        </a>
+                        </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap font-mono text-xs text-gray-600 dark:text-zinc-400">
                         {{ c.cnpj }}
@@ -95,7 +95,14 @@
                     <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
                         <div class="flex items-center justify-end gap-3">
                             <a href="{% url 'editar_cliente' c.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
-                            <a href="{% url 'excluir_cliente' c.id %}" onclick="return confirm('Deseja realmente excluir o cliente {{ c.nome }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                            <button type="button"
+                                data-title="Excluir Cliente"
+                                data-msg="Deseja realmente excluir o cliente {{ c.nome }}?"
+                                data-url="{% url 'excluir_cliente' c.id %}"
+                                onclick="triggerConfirmModal(this)"
+                                class="text-brand-500 hover:text-brand-700 transition-colors bg-transparent border-0 cursor-pointer font-semibold p-0">
+                                Excluir
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -151,19 +158,28 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold 
-                            {% if p.status_sistema == 'Ativo' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                            {% if p.status == 'ESTOQUE' or p.status == 'Disponível' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400
+                            {% elif p.status == 'CLIENTE' or p.status == 'ALOCADA' or p.status == 'Locada' %}bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400
                             {% else %}bg-amber-50 dark:bg-amber-950/40 text-amber-500{% endif %}">
                             <span class="w-1.5 h-1.5 rounded-full 
-                                {% if p.status_sistema == 'Ativo' %}bg-emerald-500
+                                {% if p.status == 'ESTOQUE' or p.status == 'Disponível' %}bg-emerald-500
+                                {% elif p.status == 'CLIENTE' or p.status == 'ALOCADA' or p.status == 'Locada' %}bg-blue-500
                                 {% else %}bg-amber-500{% endif %}">
                             </span>
-                            {{ p.status_sistema }}
+                            {{ p.get_status_display }}
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
                         <div class="flex items-center justify-end gap-3">
                             <a href="{% url 'editar_impressora' p.serial_number %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
-                            <a href="{% url 'excluir_impressora' p.serial_number %}" onclick="return confirm('Deseja realmente excluir a impressora {{ p.serial_number }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                            <button type="button"
+                                data-title="Excluir Impressora"
+                                data-msg="Deseja realmente excluir a impressora {{ p.serial_number }}?"
+                                data-url="{% url 'excluir_impressora' p.serial_number %}"
+                                onclick="triggerConfirmModal(this)"
+                                class="text-brand-500 hover:text-brand-700 transition-colors bg-transparent border-0 cursor-pointer font-semibold p-0">
+                                Excluir
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -220,7 +236,14 @@
                             {% if u == request.user %}
                                 <span class="text-gray-300 dark:text-zinc-700 cursor-not-allowed" title="Não é possível excluir o próprio usuário logado">Excluir</span>
                             {% else %}
-                                <a href="{% url 'excluir_usuario' u.id %}" onclick="return confirm('Deseja realmente excluir o usuário {{ u.username }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                                <button type="button"
+                                    data-title="Excluir Usuário"
+                                    data-msg="Deseja realmente excluir o usuário {{ u.username }}?"
+                                    data-url="{% url 'excluir_usuario' u.id %}"
+                                    onclick="triggerConfirmModal(this)"
+                                    class="text-brand-500 hover:text-brand-700 transition-colors bg-transparent border-0 cursor-pointer font-semibold p-0">
+                                    Excluir
+                                </button>
                             {% endif %}
                         </div>
                     </td>
@@ -276,7 +299,14 @@
                     <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
                         <div class="flex items-center justify-end gap-3">
                             <a href="{% url 'editar_perfil_oid' p.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
-                            <a href="{% url 'excluir_perfil_oid' p.id %}" onclick="return confirm('Deseja realmente excluir o perfil de OID {{ p.brand.name }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                            <button type="button"
+                                data-title="Excluir Perfil OID"
+                                data-msg="Deseja realmente excluir o perfil de OID {{ p.brand.name }}?"
+                                data-url="{% url 'excluir_perfil_oid' p.id %}"
+                                onclick="triggerConfirmModal(this)"
+                                class="text-brand-500 hover:text-brand-700 transition-colors bg-transparent border-0 cursor-pointer font-semibold p-0">
+                                Excluir
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -333,7 +363,14 @@
                     <td class="px-6 py-4 whitespace-nowrap text-right text-xs font-semibold">
                         <div class="flex items-center justify-end gap-3">
                             <a href="{% url 'editar_marca' m.id %}" class="text-gray-600 hover:text-brand-500 dark:text-zinc-400 dark:hover:text-brand-400 transition-colors">Editar</a>
-                            <a href="{% url 'excluir_marca' m.id %}" onclick="return confirm('Deseja realmente excluir a marca {{ m.name }}?');" class="text-brand-500 hover:text-brand-700 transition-colors">Excluir</a>
+                            <button type="button"
+                                data-title="Excluir Marca"
+                                data-msg="Deseja realmente excluir a marca {{ m.name }}?"
+                                data-url="{% url 'excluir_marca' m.id %}"
+                                onclick="triggerConfirmModal(this)"
+                                class="text-brand-500 hover:text-brand-700 transition-colors bg-transparent border-0 cursor-pointer font-semibold p-0">
+                                Excluir
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -349,10 +386,68 @@
     </div>
 </div>
 
-<!-- Simple Tab Controller Script -->
+<!-- PRISMA Custom Dark Confirmation Modal -->
+<div id="prisma-confirm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+    <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-6 max-w-md w-full shadow-2xl transform transition-all">
+        
+        <div class="flex items-center gap-3.5 mb-4">
+            <div id="confirm-modal-icon-bg" class="w-10 h-10 rounded-xl bg-brand-500/10 text-brand-500 flex items-center justify-center shrink-0 border border-brand-500/20">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <div>
+                <h3 id="confirm-modal-title" class="text-base font-bold text-gray-900 dark:text-white">Confirmação de Ação</h3>
+                <p id="confirm-modal-subtitle" class="text-xs text-gray-400">Esta ação exige confirmação para segurança dos dados</p>
+            </div>
+        </div>
+
+        <p id="confirm-modal-message" class="text-xs text-gray-700 dark:text-zinc-300 mb-6 bg-gray-50 dark:bg-zinc-950 p-3.5 rounded-xl border border-gray-100 dark:border-zinc-800/80 leading-relaxed font-medium">
+            Tem certeza de que deseja prosseguir?
+        </p>
+
+        <div class="flex items-center justify-end gap-2.5">
+            <button type="button" onclick="closeConfirmModal()" 
+                class="px-4 py-2 text-xs font-bold text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 border border-gray-200 dark:border-zinc-800 rounded-xl transition-colors">
+                Cancelar
+            </button>
+            <a id="confirm-modal-action-btn" href="#" 
+                class="px-4 py-2 text-xs font-bold text-white bg-brand-500 hover:bg-brand-600 rounded-xl transition-all shadow-sm active:scale-[0.98]">
+                Confirmar
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Tab Controller & Confirmation Script -->
 <script>
+    function triggerConfirmModal(btnEl) {
+        const title = btnEl.getAttribute('data-title');
+        const msg = btnEl.getAttribute('data-msg');
+        const url = btnEl.getAttribute('data-url');
+        openConfirmModal(title, msg, url);
+    }
+
+    function openConfirmModal(title, message, actionUrl, buttonText = "Confirmar Exclusão") {
+        const modal = document.getElementById('prisma-confirm-modal');
+        if (!modal) return;
+        
+        document.getElementById('confirm-modal-title').textContent = title || "Confirmação";
+        document.getElementById('confirm-modal-message').textContent = message || "Tem certeza de que deseja executar esta ação?";
+        
+        const actionBtn = document.getElementById('confirm-modal-action-btn');
+        actionBtn.href = actionUrl;
+        actionBtn.textContent = buttonText;
+        
+        modal.classList.remove('hidden');
+    }
+
+    function closeConfirmModal() {
+        const modal = document.getElementById('prisma-confirm-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
     function showTab(tabName) {
-        // Toggle tab styles
         const tabs = ['clientes', 'impressoras', 'usuarios', 'perfis_oid', 'marcas'];
         tabs.forEach(t => {
             const btn = document.getElementById(`tab-${t}-btn`);
@@ -368,11 +463,9 @@
             }
         });
 
-        // Save tab to state/localStorage
         localStorage.setItem('management-tab', tabName);
     }
 
-    // Restore last active tab on load
     document.addEventListener('DOMContentLoaded', () => {
         const lastTab = localStorage.getItem('management-tab') || 'clientes';
         showTab(lastTab);

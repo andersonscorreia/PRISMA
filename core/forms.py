@@ -19,13 +19,38 @@ class ClienteForm(forms.ModelForm):
 class ImpressoraForm(forms.ModelForm):
     class Meta:
         model = Impressora
-        fields = ['name', 'brand', 'oid_profile', 'serial_number']
+        fields = ['serial_number', 'ip_address', 'name', 'brand', 'oid_profile']
         widgets = {
+            'serial_number': forms.TextInput(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm font-mono', 'placeholder': 'Número de Série Físico'}),
+            'ip_address': forms.TextInput(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm font-mono', 'placeholder': 'Ex: 192.168.1.100'}),
             'name': forms.TextInput(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm', 'placeholder': 'Nome da Impressora'}),
             'brand': forms.Select(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm'}),
             'oid_profile': forms.Select(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm'}),
-            'serial_number': forms.TextInput(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm', 'placeholder': 'Número de Série Físico'}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['serial_number'].widget.attrs['readonly'] = True
+            self.fields['serial_number'].widget.attrs['class'] += ' bg-gray-100 dark:bg-zinc-900/80 cursor-not-allowed opacity-80'
+            self.fields['serial_number'].help_text = "O número de série é o identificador único da impressora e não pode ser alterado."
+
+            # O campo de IP só deve estar disponível para edição se a impressora estiver locada em um cliente
+            esta_alocada = (
+                getattr(self.instance, 'cliente_id', None) is not None or 
+                getattr(self.instance, 'cliente', None) is not None or 
+                str(self.instance.status).upper() in ['CLIENTE', 'ALOCADA', 'LOCADA']
+            )
+            if not esta_alocada:
+                if 'ip_address' in self.fields:
+                    del self.fields['ip_address']
+            else:
+                if 'ip_address' in self.fields:
+                    self.fields['ip_address'].help_text = "Endereço IP do equipamento na rede do cliente."
+        else:
+            # No cadastro inicial, o IP não é informado (será informado ao locar a impressora no cliente)
+            if 'ip_address' in self.fields:
+                del self.fields['ip_address']
 
 class PerfilOidMarcaForm(forms.ModelForm):
     class Meta:

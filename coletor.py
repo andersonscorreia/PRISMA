@@ -124,7 +124,21 @@ async def enviar_dados(dados):
     """
     Envia os dados coletados da impressora via POST assíncrono para a API PRISMA.
     """
-    url = "http://127.0.0.1:8000/api/coleta/"
+    def get_api_url():
+        import json
+        import os
+        try:
+            if os.path.exists("config_servidor.json"):
+                with open("config_servidor.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    url = data.get("django_api_url")
+                    if url:
+                        return url
+        except Exception:
+            pass
+        return "http://127.0.0.1:8000/api/coleta/"
+
+    url = get_api_url()
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, json=dados)

@@ -23,9 +23,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-b+^vp=@5z^+*-8+pb8uea3az#!6d4p@u$5k2mpdrcla9jufgws'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['192.170.0.241', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -72,21 +72,25 @@ WSGI_APPLICATION = 'prisma_server.wsgi.application'
 
 import sys
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME', 'prisma_db'),
-        'USER': os.environ.get('DB_USER', 'prisma_admin'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'Gtrig!4590'),
-        'HOST': os.environ.get('DB_HOST', 'mysql_db'),
-        'PORT': os.environ.get('DB_PORT', '3306'),
-    }
-}
+db_engine = os.environ.get('DB_ENGINE', 'mysql')
 
-if 'test' in sys.argv:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db_test.sqlite3',
+if db_engine == 'sqlite' or os.environ.get('USE_SQLITE') == '1' or 'test' in sys.argv:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DB_NAME', 'prisma_db'),
+            'USER': os.environ.get('DB_USER', 'prisma_admin'),
+            'PASSWORD': os.environ.get('DB_PASSWORD', 'Gtrig!4590'),
+            'HOST': os.environ.get('DB_HOST', 'mysql_db'),
+            'PORT': os.environ.get('DB_PORT', '3306'),
+        }
     }
 
 

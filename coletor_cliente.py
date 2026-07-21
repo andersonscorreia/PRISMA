@@ -16,7 +16,23 @@ from PIL import Image, ImageDraw
 ctk.set_appearance_mode("dark")
 
 ARQUIVO_JSON = "impressoras.json"
-DJANGO_API_URL = "http://192.170.0.241:8999/api/coleta/"
+
+def carregar_config_servidor_coletor():
+    default_config = {
+        "django_api_url": "http://192.170.0.241:8999/api/coleta/"
+    }
+    if os.path.exists("config_servidor.json"):
+        try:
+            with open("config_servidor.json", 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                if "django_api_url" in data:
+                    return data
+        except Exception:
+            pass
+    return default_config
+
+_config_coletor = carregar_config_servidor_coletor()
+DJANGO_API_URL = _config_coletor["django_api_url"]
 DJANGO_SERVER_URL = "/".join(DJANGO_API_URL.split("/")[:3])
 
 def carregar_do_json():

@@ -70,7 +70,6 @@
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' or request.user.groups.all.0.name == 'Técnico' or request.user.groups.all.1.name == 'Técnico' %}
                             <a href="{% url 'dashboard_geral' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Dashboard</a>
                             <a href="{% url 'inventario_dashboard' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Controle de Inventário</a>
-                            <a href="{% url 'estoque_disponivel' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Estoque Disponível</a>
                             <a href="{% url 'snmp_dashboard' %}" class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Métricas das Impressoras</a>
                         {% endif %}
                         {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' %}
