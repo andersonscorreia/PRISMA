@@ -3,31 +3,31 @@
 {% block title %}Entrar - PRISMA{% endblock %}
 
 {% block content %}
-<div class="flex flex-col justify-center py-4 sm:px-6 lg:px-8">
-    <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+<div class="flex flex-col justify-center py-6 sm:px-6 lg:px-8 min-h-[75vh]">
+    <div class="sm:mx-auto sm:w-full sm:max-w-[420px]">
         <!-- Logo -->
         <div
-            class="mx-auto w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center shadow-md shadow-brand-500/20">
-            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            class="mx-auto w-12 h-12 rounded-2xl bg-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/25">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
                     d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
             </svg>
         </div>
-        <h2 class="mt-3 text-center text-xl font-bold text-gray-900 dark:text-white">
+        <h2 class="mt-4 text-center text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">
             Acesse o PRISMA
         </h2>
     </div>
 
-    <div class="mt-4 sm:mx-auto sm:w-full sm:max-w-sm">
+    <div class="mt-5 sm:mx-auto sm:w-full sm:max-w-[420px]">
         <div
-            class="bg-white dark:bg-zinc-900 py-5 px-5 border border-gray-200 dark:border-zinc-800 shadow-sm sm:rounded-xl sm:px-6">
+            class="bg-white dark:bg-zinc-900 py-6 px-6 border border-gray-200 dark:border-zinc-800/80 shadow-md sm:rounded-2xl sm:px-8">
 
             <!-- Messages (Error Alerts) -->
             {% if messages %}
-            <div class="mb-3">
+            <div class="mb-4">
                 {% for msg in messages %}
                 <div
-                    class="p-2.5 bg-red-50 dark:bg-brand-950/30 text-brand-500 rounded-lg text-xs font-semibold flex items-center gap-2">
+                    class="p-3 bg-red-50 dark:bg-brand-950/40 text-brand-500 border border-red-200 dark:border-brand-900/50 rounded-xl text-xs font-semibold flex items-center gap-2.5">
                     <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -42,30 +42,32 @@
                 {% csrf_token %}
                 <div>
                     <label for="username"
-                        class="block text-[11px] font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider">
+                        class="block text-xs font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                         Usuário / Login
                     </label>
-                    <div class="mt-1">
+                    <div>
                         <input id="username" name="username" type="text" required autocomplete="username"
-                            class="appearance-none block w-full px-3 py-1.5 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-xs bg-white dark:bg-zinc-950 text-gray-900 dark:text-white">
+                            placeholder="Digite seu usuário"
+                            class="appearance-none block w-full px-3.5 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl shadow-xs placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 text-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-all">
                     </div>
                 </div>
 
                 <div>
                     <label for="password"
-                        class="block text-[11px] font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider">
+                        class="block text-xs font-semibold text-gray-700 dark:text-zinc-300 uppercase tracking-wider mb-1.5">
                         Senha
                     </label>
-                    <div class="mt-1">
+                    <div>
                         <input id="password" name="password" type="password" required autocomplete="current-password"
-                            class="appearance-none block w-full px-3 py-1.5 border border-gray-300 dark:border-zinc-700 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-500 focus:border-brand-500 sm:text-xs bg-white dark:bg-zinc-950 text-gray-900 dark:text-white">
+                            placeholder="••••••••"
+                            class="appearance-none block w-full px-3.5 py-2.5 border border-gray-300 dark:border-zinc-700 rounded-xl shadow-xs placeholder-gray-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 text-sm bg-white dark:bg-zinc-950 text-gray-900 dark:text-white transition-all">
                     </div>
                 </div>
 
-                <div class="pt-1">
+                <div class="pt-2">
                     <button type="submit"
-                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-xs font-semibold text-white bg-brand-500 hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 active:scale-[0.98] transition-transform duration-75">
-                        Login
+                        class="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-brand-500 hover:bg-brand-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 active:scale-[0.98] transition-all duration-150">
+                        Entrar no Sistema
                     </button>
                 </div>
             </form>
