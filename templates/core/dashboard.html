@@ -224,14 +224,6 @@
 
     // Função de Filtragem Interativa por Card KPI
     function filterPrinters(filterType, clickedCard) {
-        document.querySelectorAll('.filter-kpi-card').forEach(card => {
-            card.classList.remove('ring-2', 'ring-brand-500', 'border-brand-500');
-        });
-
-        if (clickedCard) {
-            clickedCard.classList.add('ring-2', 'ring-brand-500', 'border-brand-500');
-        }
-
         const cards = document.querySelectorAll('.printer-card');
         let visibleCount = 0;
 
@@ -285,7 +277,7 @@
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <!-- Total -->
         <div onclick="filterPrinters('all', this)"
-            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ring-2 ring-brand-500 border-brand-500">
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-brand-500 hover:ring-1 hover:ring-brand-500 active:scale-[0.98]">
             <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Total Impressoras</p>
                 <h3 class="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{{ total_printers }}</h3>
@@ -301,7 +293,7 @@
 
         <!-- Online -->
         <div onclick="filterPrinters('online', this)"
-            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-brand-500 hover:ring-1 hover:ring-brand-500 active:scale-[0.98]">
             <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Online</p>
                 <h3 class="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-500">{{ online_printers }}</h3>
@@ -317,7 +309,7 @@
 
         <!-- Offline -->
         <div onclick="filterPrinters('offline', this)"
-            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-brand-500 hover:ring-1 hover:ring-brand-500 active:scale-[0.98]">
             <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Offline / Inativas</p>
                 <h3 class="text-2xl font-bold mt-1 text-brand-500">{{ offline_printers }}</h3>
@@ -333,7 +325,7 @@
 
         <!-- Toners baixos -->
         <div onclick="filterPrinters('low_toner', this)"
-            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:border-brand-500 hover:ring-1 hover:ring-brand-500 active:scale-[0.98]">
             <div>
                 <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Toners &lt; 15%</p>
                 <h3 class="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-500">{{ low_toner_count }}</h3>
