@@ -1,5 +1,5 @@
 from django.urls import path, include
-from django.http import HttpResponseNotFound
+from django.http import HttpResponseNotFound, HttpResponseForbidden
 from django.template.loader import render_to_string
 from prisma_server import views as server_views
 from core import views as core_views
@@ -8,7 +8,12 @@ def page_not_found_view(request, exception=None):
     html = render_to_string('404.html', request=request)
     return HttpResponseNotFound(html)
 
+def permission_denied_view(request, exception=None):
+    html = render_to_string('403.html', request=request)
+    return HttpResponseForbidden(html)
+
 handler404 = page_not_found_view
+handler403 = permission_denied_view
 
 urlpatterns = [
     

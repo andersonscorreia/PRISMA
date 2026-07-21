@@ -972,6 +972,11 @@ class PrinterMonitoringTests(TestCase):
         res_snmp_fin = self.client.get(reverse('snmp_dashboard'))
         self.assertEqual(res_snmp_fin.status_code, 302)
 
+        # 3. Acesso a Gerenciamento por não-Admin retorna 403 com a página personalizada
+        res_ger = self.client.get(reverse('gerenciamento'))
+        self.assertEqual(res_ger.status_code, 403)
+        self.assertIn("Acesso Não Autorizado", res_ger.content.decode('utf-8'))
+
 
 
 

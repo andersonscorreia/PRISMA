@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 – Acesso Não Autorizado | PRISMA</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['"Plus Jakarta Sans"', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50: '#fff5f5', 100: '#fed7d7', 200: '#feb2b2',
+                            300: '#fc8181', 400: '#f6e05e',
+                            500: '#e53e3e', 600: '#c53030', 700: '#9b2c2c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-16px); }
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+
+        @keyframes fade-in-up {
+            from { opacity: 0; transform: translateY(24px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .float-anim { animation: float 4s ease-in-out infinite; }
+        .fade-in-up { animation: fade-in-up 0.6s ease forwards; }
+        .fade-in-up-delay-1 { animation: fade-in-up 0.6s ease 0.15s forwards; opacity: 0; }
+        .fade-in-up-delay-2 { animation: fade-in-up 0.6s ease 0.3s forwards; opacity: 0; }
+        .fade-in-up-delay-3 { animation: fade-in-up 0.6s ease 0.45s forwards; opacity: 0; }
+        .pulse-ring { animation: pulse-ring 1.8s ease-out infinite; }
+        .glow { box-shadow: 0 0 40px rgba(229, 62, 62, 0.25), 0 0 80px rgba(229, 62, 62, 0.1); }
+    </style>
+</head>
+
+<body class="bg-zinc-950 text-zinc-100 font-sans min-h-screen flex flex-col items-center justify-center px-4">
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-brand-600/5 rounded-full blur-3xl"></div>
+        <div class="absolute inset-0"
+            style="background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0); background-size: 32px 32px;">
+        </div>
+    </div>
+    <div class="relative z-10 flex flex-col items-center text-center max-w-lg w-full">
+        <div class="float-anim relative mb-8 fade-in-up">
+            <div class="absolute inset-0 rounded-full bg-brand-500/20 pulse-ring"></div>
+            <div class="absolute inset-0 rounded-full bg-brand-500/10 pulse-ring" style="animation-delay: 0.6s"></div>
+            <div
+                class="relative w-28 h-28 rounded-full bg-zinc-900 border-2 border-brand-500/40 glow flex items-center justify-center">
+                <svg class="w-14 h-14 text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                    stroke-width="1.5">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+            </div>
+        </div>
+        <div class="fade-in-up-delay-1">
+            <p class="text-xs font-semibold tracking-[0.25em] text-brand-500 uppercase mb-2">Erro 403 · Acesso Negado</p>
+            <h1 class="text-4xl font-extrabold text-white mb-3 leading-tight">Acesso Não<br>Autorizado</h1>
+        </div>
+        <p class="text-zinc-400 text-base leading-relaxed mb-10 fade-in-up-delay-2">
+            Seu usuário não possui nível de permissão suficiente para acessar esta área do sistema.<br>
+            Entre em contato com um Administrador se precisar de acesso.
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 w-full justify-center fade-in-up-delay-3">
+            <a href="/"
+                class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-all duration-200 hover:shadow-lg hover:shadow-brand-500/30 hover:-translate-y-0.5">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                Ir Para o PRISMA
+            </a>
+            <button onclick="history.back()"
+                class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm transition-all duration-200 hover:-translate-y-0.5 border border-zinc-700">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Voltar
+            </button>
+        </div>
+        <div class="mt-14 fade-in-up-delay-3">
+            <p class="text-zinc-600 text-xs tracking-widest font-semibold uppercase">PRISMA · Sistema de Rastreabilidade</p>
+        </div>
+    </div>
+</body>
+
+</html>
