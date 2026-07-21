@@ -357,6 +357,7 @@
             </a>
             {% endif %}
             <a href="{% url 'exportar_contadores_xlsx' %}?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}{% if cliente_filtrado %}&cliente_id={{ cliente_filtrado.id }}{% endif %}{% if serial_query %}&serial={{ serial_query }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+                onclick="baixarArquivoSeguro(event, this.href, 'contadores.xlsx')"
                 class="px-3.5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -365,6 +366,7 @@
                 Exportar Excel
             </a>
             <a href="{% url 'exportar_contadores_pdf' %}?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}{% if cliente_filtrado %}&cliente_id={{ cliente_filtrado.id }}{% endif %}{% if serial_query %}&serial={{ serial_query }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+                onclick="baixarArquivoSeguro(event, this.href, 'contadores.pdf')"
                 class="px-3.5 py-2 text-xs bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -595,6 +597,44 @@
             },
         });
     });
+
+    async function baixarArquivoSeguro(event, url, defaultFilename) {
+        event.preventDefault();
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.style.pointerEvents = 'none';
+        btn.style.opacity = '0.7';
+        btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg> Baixando...`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Erro ao baixar arquivo');
+            
+            let filename = defaultFilename;
+            const disposition = response.headers.get('Content-Disposition');
+            if (disposition && disposition.includes('filename=')) {
+                const match = disposition.match(/filename="?([^";]+)"?/);
+                if (match && match[1]) filename = match[1];
+            }
+
+            const blob = await response.blob();
+            const blobUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+        } catch (err) {
+            console.error(err);
+            window.location.href = url;
+        } finally {
+            btn.innerHTML = originalText;
+            btn.style.pointerEvents = 'auto';
+            btn.style.opacity = '1';
+        }
+    }
 </script>
 
 {% endblock %}
