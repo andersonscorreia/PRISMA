@@ -55,14 +55,20 @@
      TAB 1: CLIENTES
      ===================================================== -->
 <div id="tab-clientes-content" class="space-y-4">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 class="font-bold text-gray-900 dark:text-white text-base">Clientes Cadastrados</h3>
-        <a href="{% url 'cadastrar_cliente' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-            </svg>
-            Novo Cliente
-        </a>
+        <div class="flex items-center gap-3">
+            <div class="relative w-64">
+                <input type="text" id="search-clientes" onkeyup="filterTabTable('tab-clientes-content', this.value)" placeholder="Pesquisar cliente (nome, CNPJ)..." class="w-full pl-9 pr-8 py-2 text-xs bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-sm">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <a href="{% url 'cadastrar_cliente' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98] shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Novo Cliente
+            </a>
+        </div>
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -116,10 +122,14 @@
      TAB 2: IMPRESSORAS
      ===================================================== -->
 <div id="tab-impressoras-content" class="space-y-4 hidden">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 class="font-bold text-gray-900 dark:text-white text-base">Impressoras no Inventário</h3>
-        <div class="flex items-center gap-2">
-            <a href="{% url 'cadastrar_impressora' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
+        <div class="flex items-center gap-3">
+            <div class="relative w-64">
+                <input type="text" id="search-impressoras" onkeyup="filterTabTable('tab-impressoras-content', this.value)" placeholder="Pesquisar impressora (série, IP, marca)..." class="w-full pl-9 pr-8 py-2 text-xs bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-sm">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <a href="{% url 'cadastrar_impressora' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98] shrink-0">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
                 </svg>
@@ -193,14 +203,20 @@
      TAB 3: USUARIOS
      ===================================================== -->
 <div id="tab-usuarios-content" class="space-y-4 hidden">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 class="font-bold text-gray-900 dark:text-white text-base">Operadores Cadastrados</h3>
-        <a href="{% url 'cadastrar_usuario' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-            </svg>
-            Novo Usuário
-        </a>
+        <div class="flex items-center gap-3">
+            <div class="relative w-64">
+                <input type="text" id="search-usuarios" onkeyup="filterTabTable('tab-usuarios-content', this.value)" placeholder="Pesquisar operador (login, nome)..." class="w-full pl-9 pr-8 py-2 text-xs bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-sm">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <a href="{% url 'cadastrar_usuario' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98] shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Novo Usuário
+            </a>
+        </div>
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -258,14 +274,20 @@
      TAB 4: PERFIS DE OID
      ===================================================== -->
 <div id="tab-perfis_oid-content" class="space-y-4 hidden">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 class="font-bold text-gray-900 dark:text-white text-base">Perfis de OID Cadastrados</h3>
-        <a href="{% url 'cadastrar_perfil_oid' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-            </svg>
-            Novo Perfil de OID
-        </a>
+        <div class="flex items-center gap-3">
+            <div class="relative w-64">
+                <input type="text" id="search-perfis_oid" onkeyup="filterTabTable('tab-perfis_oid-content', this.value)" placeholder="Pesquisar perfil OID (marca, OID)..." class="w-full pl-9 pr-8 py-2 text-xs bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-sm">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <a href="{% url 'cadastrar_perfil_oid' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98] shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Novo Perfil de OID
+            </a>
+        </div>
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -320,14 +342,20 @@
      TAB 5: MARCAS
      ===================================================== -->
 <div id="tab-marcas-content" class="space-y-4 hidden">
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h3 class="font-bold text-gray-900 dark:text-white text-base">Marcas Cadastradas</h3>
-        <a href="{% url 'cadastrar_marca' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98]">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
-            </svg>
-            Nova Marca
-        </a>
+        <div class="flex items-center gap-3">
+            <div class="relative w-64">
+                <input type="text" id="search-marcas" onkeyup="filterTabTable('tab-marcas-content', this.value)" placeholder="Pesquisar marca..." class="w-full pl-9 pr-8 py-2 text-xs bg-white dark:bg-zinc-800/80 border border-gray-200 dark:border-zinc-700/80 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 transition-all shadow-sm">
+                <svg class="w-4 h-4 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+            <a href="{% url 'cadastrar_marca' %}" class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-brand-500 hover:bg-brand-600 text-white rounded-xl shadow-sm transition-all active:scale-[0.98] shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
+                </svg>
+                Nova Marca
+            </a>
+        </div>
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
@@ -464,6 +492,42 @@
         });
 
         localStorage.setItem('management-tab', tabName);
+    }
+
+    function filterTabTable(containerId, query) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        const rows = container.querySelectorAll('tbody tr');
+        const q = (query || '').toLowerCase().trim();
+
+        let visibleCount = 0;
+        rows.forEach(row => {
+            if (row.classList.contains('no-results-row')) return;
+            const text = row.textContent.toLowerCase();
+            if (!q || text.includes(q)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        let emptyRow = container.querySelector('.no-results-row');
+        if (visibleCount === 0 && q !== '') {
+            if (!emptyRow) {
+                const tbody = container.querySelector('tbody');
+                const colCount = container.querySelectorAll('thead th').length || 4;
+                emptyRow = document.createElement('tr');
+                emptyRow.className = 'no-results-row';
+                emptyRow.innerHTML = `<td colspan="${colCount}" class="px-6 py-8 text-center text-xs text-gray-400 dark:text-zinc-500 font-medium">Nenhum resultado encontrado para "<strong>${q}</strong>".</td>`;
+                tbody.appendChild(emptyRow);
+            } else {
+                emptyRow.querySelector('td').innerHTML = `Nenhum resultado encontrado para "<strong>${q}</strong>".`;
+                emptyRow.style.display = '';
+            }
+        } else if (emptyRow) {
+            emptyRow.style.display = 'none';
+        }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
