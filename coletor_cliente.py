@@ -722,6 +722,8 @@ class DashboardFinal(ctk.CTk):
 
         # 3. Formatar dados coletados
         uptime = formatar_uptime(resultados.get("tempo_ligada") or resultados.get("oid_tempo_ligada") or "N/A")
+        if uptime and serial_detectado and str(serial_detectado) in str(uptime):
+            uptime = str(uptime).replace(str(serial_detectado), "").strip()
         painel = formatar_painel(resultados.get("mensagem_painel") or resultados.get("oid_mensagem_painel") or "N/A")
         serial_detectado = resultados.get("N_S") or resultados.get("oid_serial_number")
         if not serial_detectado or serial_detectado == "N/A":

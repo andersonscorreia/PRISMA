@@ -1588,6 +1588,8 @@ def coleta_impressora_api(request):
     uptime = data.get("uptime")
     if uptime in ("N/A", "---"):
         uptime = None
+    elif uptime and serial and str(serial) in str(uptime):
+        uptime = str(uptime).replace(str(serial), "").strip()
         
     mensagem_painel = data.get("mensagem_painel")
     if mensagem_painel in ("N/A", "---", "Clique em Atualizar"):

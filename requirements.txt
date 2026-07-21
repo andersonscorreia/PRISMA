@@ -1,6 +1,1 @@
-django>=4.2,<6.0
-mysqlclient
-requests
-httpx
-openpyxl
-reportlab
+django>=4.2,<5.0ninfluxdb-clientnrequestsnmysqlclientnhttpx

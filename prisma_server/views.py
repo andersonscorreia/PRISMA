@@ -114,6 +114,10 @@ def query_latest_printers():
             if val is not None:
                 toner_list.append({"color": color, "level": val})
                 
+        uptime_val = record.uptime or "N/A"
+        if uptime_val != "N/A" and record.serial and record.serial in uptime_val:
+            uptime_val = uptime_val.replace(record.serial, "").strip()
+
         printers[ip] = {
             "ip_address": ip,
             "serial_number": record.serial or "N/A",
@@ -121,7 +125,7 @@ def query_latest_printers():
             "model": model,
             "status": record.status or "Offline",
             "last_counter": record.contador_geral or record.contador_total,
-            "tempo_ligada": record.uptime or "N/A",
+            "tempo_ligada": uptime_val or "N/A",
             "mensagem_erro": record.mensagem_painel or "N/A",
             "last_toner_data": toner_list,
             "contador_total": record.contador_total,
