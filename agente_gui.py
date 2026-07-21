@@ -277,87 +277,25 @@ class DashboardFinal(ctk.CTk):
         self.iniciar_tray_icon()
 
     def toggle_sidebar(self):
-        is_dashboard = getattr(self, "active_view", "dashboard") == "dashboard"
-        
-        if is_dashboard:
-            self.frame_scroll.pack_forget()
-        
         if self.sidebar_expanded:
+            self.sidebar_expanded = False
+            self.sidebar_current_width = 60
+            self.frame_sidebar.configure(width=60)
             self.btn_toggle.configure(text="", image=self.icon_toggle, anchor="center")
             self.btn_nav_dashboard.configure(text="", anchor="center")
             self.btn_nav_cliente.configure(text="", anchor="center")
             self.btn_nav_auth.configure(text="", anchor="center")
-            
-            self.sidebar_expanded = False
-            
-            if is_dashboard:
-                if self.sidebar_animation_job:
-                    self.after_cancel(self.sidebar_animation_job)
-                    self.sidebar_animation_job = None
-                self.sidebar_current_width = 60
-                self.frame_sidebar.configure(width=60)
-            else:
-                self.animate_sidebar(60)
         else:
             self.sidebar_expanded = True
-            
-            if is_dashboard:
-                if self.sidebar_animation_job:
-                    self.after_cancel(self.sidebar_animation_job)
-                    self.sidebar_animation_job = None
-                self.sidebar_current_width = 220
-                self.frame_sidebar.configure(width=220)
-                self.btn_toggle.configure(text="PRISMA", image=self.icon_toggle, anchor="w")
-                self.btn_nav_dashboard.configure(text="Dashboard", anchor="w")
-                self.btn_nav_cliente.configure(text="Selecionar Cliente", anchor="w")
-                if Session.is_authenticated:
-                    self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
-                else:
-                    self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
+            self.sidebar_current_width = 220
+            self.frame_sidebar.configure(width=220)
+            self.btn_toggle.configure(text="PRISMA", image=self.icon_toggle, anchor="w")
+            self.btn_nav_dashboard.configure(text="Dashboard", anchor="w")
+            self.btn_nav_cliente.configure(text="Selecionar Cliente", anchor="w")
+            if Session.is_authenticated:
+                self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
             else:
-                self.animate_sidebar(220)
-                
-        if is_dashboard:
-            self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
-            self.update_idletasks()
-
-    def animate_sidebar(self, target_width):
-        if self.sidebar_animation_job:
-            self.after_cancel(self.sidebar_animation_job)
-            self.sidebar_animation_job = None
-            
-        if not hasattr(self, "sidebar_current_width"):
-            self.sidebar_current_width = 220 if not self.sidebar_expanded else 60
-            
-        current_width = self.sidebar_current_width
-        
-        diff = target_width - current_width
-        step_size = 32
-        delay = 12
-        
-        if abs(diff) <= step_size:
-            self.sidebar_current_width = target_width
-            self.frame_sidebar.configure(width=target_width)
-            self.update_idletasks()
-            self.sidebar_animation_job = None
-            if self.sidebar_expanded:
-                self.btn_toggle.configure(text="PRISMA", image=self.icon_toggle, anchor="w")
-                self.btn_nav_dashboard.configure(text="Dashboard", anchor="w")
-                self.btn_nav_cliente.configure(text="Selecionar Cliente", anchor="w")
-                if Session.is_authenticated:
-                    self.btn_nav_auth.configure(text="Desconectar", image=self.icon_logout, text_color="#ef4444", anchor="w")
-                else:
-                    self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
-
-            if getattr(self, "active_view", "dashboard") == "dashboard":
-                self.frame_scroll.pack(fill="both", expand=True, padx=0, pady=(5, 10))
-        else:
-            step = step_size if diff > 0 else -step_size
-            new_width = current_width + step
-            self.sidebar_current_width = new_width
-            self.frame_sidebar.configure(width=new_width)
-            self.update_idletasks()
-            self.sidebar_animation_job = self.after(delay, lambda: self.animate_sidebar(target_width))
+                self.btn_nav_auth.configure(text="Fazer Login", image=self.icon_login, text_color="#10b981", anchor="w")
 
     def show_view(self, name):
         self.view_dashboard.pack_forget()
@@ -689,13 +627,21 @@ class DashboardFinal(ctk.CTk):
         lbl_c_txt.pack(anchor="w")
 
         grid_info = ctk.CTkFrame(card, fg_color="transparent")
-        grid_info.pack(fill="x", padx=15, pady=5)
+        grid_info.pack(fill="x", padx=15, pady=4)
+        grid_info.columnconfigure(0, weight=1)
+        grid_info.columnconfigure(1, weight=1)
+
+        lbl_up_head = ctk.CTkLabel(grid_info, text="Uptime", font=("Inter", 9, "bold"), text_color="#64748b")
+        lbl_up_head.grid(row=0, column=0, sticky="w")
+        
+        lbl_ser_head = ctk.CTkLabel(grid_info, text="Nº de Série", font=("Inter", 9, "bold"), text_color="#64748b")
+        lbl_ser_head.grid(row=0, column=1, sticky="e")
         
         lbl_up = ctk.CTkLabel(grid_info, text="---", font=("Inter", 11, "bold"), text_color="#cbd5e1")
-        lbl_up.grid(row=0, column=0, sticky="w")
+        lbl_up.grid(row=1, column=0, sticky="w")
         
         lbl_ser = ctk.CTkLabel(grid_info, text="---", font=("Inter", 11, "bold"), text_color="#cbd5e1")
-        lbl_ser.grid(row=0, column=1, sticky="e")
+        lbl_ser.grid(row=1, column=1, sticky="e")
 
         supr = ctk.CTkFrame(card, fg_color="transparent")
         supr.pack(fill="x", padx=15, pady=(5, 10))
@@ -766,13 +712,21 @@ class DashboardFinal(ctk.CTk):
             lbl_a4, lbl_a3, lbl_a5 = None, None, None
 
         grid_info = ctk.CTkFrame(card, fg_color="transparent")
-        grid_info.pack(fill="x", padx=15, pady=5)
+        grid_info.pack(fill="x", padx=15, pady=4)
+        grid_info.columnconfigure(0, weight=1)
+        grid_info.columnconfigure(1, weight=1)
+
+        lbl_up_head2 = ctk.CTkLabel(grid_info, text="Uptime", font=("Inter", 9, "bold"), text_color="#64748b")
+        lbl_up_head2.grid(row=0, column=0, sticky="w")
+        
+        lbl_ser_head2 = ctk.CTkLabel(grid_info, text="Nº de Série", font=("Inter", 9, "bold"), text_color="#64748b")
+        lbl_ser_head2.grid(row=0, column=1, sticky="e")
         
         lbl_up = ctk.CTkLabel(grid_info, text="---", font=("Inter", 11, "bold"), text_color="#cbd5e1")
-        lbl_up.grid(row=0, column=0, sticky="w")
+        lbl_up.grid(row=1, column=0, sticky="w")
         
         lbl_ser = ctk.CTkLabel(grid_info, text="---", font=("Inter", 11, "bold"), text_color="#cbd5e1")
-        lbl_ser.grid(row=0, column=1, sticky="e")
+        lbl_ser.grid(row=1, column=1, sticky="e")
 
         supr = ctk.CTkFrame(card, fg_color="transparent")
         supr.pack(fill="x", padx=15, pady=(5, 10))
