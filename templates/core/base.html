@@ -76,15 +76,17 @@
                     <!-- Navigation Links -->
                     {% if request.user.is_authenticated %}
                     <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
-                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' or request.user.groups.all.0.name == 'Técnico' or request.user.groups.all.1.name == 'Técnico' %}
+                        {% if is_admin or is_financeiro %}
                         <a href="{% url 'dashboard_geral' %}"
                             class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Controle</a>
+                        {% endif %}
+                        {% if is_admin or is_tecnico %}
                         <a href="{% url 'inventario_dashboard' %}"
                             class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Inventário</a>
                         <a href="{% url 'snmp_dashboard' %}"
                             class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400">Dashboard</a>
                         {% endif %}
-                        {% if request.user.is_superuser or request.user.groups.all.0.name == 'Admin' or request.user.groups.all.1.name == 'Admin' %}
+                        {% if is_admin %}
                         <div class="h-4 w-[1px] bg-gray-200 dark:bg-zinc-800"></div>
                         <a href="{% url 'gerenciamento' %}"
                             class="text-gray-600 dark:text-zinc-300 hover:text-brand-500 dark:hover:text-brand-400 font-bold"

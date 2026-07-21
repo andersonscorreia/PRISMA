@@ -161,10 +161,15 @@ def is_valid_ipv4(ip_str):
             return False
     return True
 
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 
 @login_required(login_url='login')
 def dashboard(request):
+    # Controle de Usuários: Financeiro acessa apenas a tela Controle
+    if request.user.groups.filter(name='Financeiro').exists() and not (request.user.is_superuser or request.user.groups.filter(name='Admin').exists()):
+        return redirect('dashboard_geral')
+
     try:
         all_printers = query_latest_printers()
     except Exception as e:

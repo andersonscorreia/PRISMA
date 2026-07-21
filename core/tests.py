@@ -938,6 +938,40 @@ class PrinterMonitoringTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
+    def test_role_based_access_control(self):
+        """Testa restrições de acesso por perfil: Admin, Técnico e Financeiro."""
+        from django.contrib.auth.models import Group
+
+        group_admin, _ = Group.objects.get_or_create(name='Admin')
+        group_tecnico, _ = Group.objects.get_or_create(name='Técnico')
+        group_financeiro, _ = Group.objects.get_or_create(name='Financeiro')
+
+        # Usuário Técnico
+        user_tecnico = User.objects.create_user(username='user_tecnico', password='123')
+        user_tecnico.groups.add(group_tecnico)
+
+        # Usuário Financeiro
+        user_financeiro = User.objects.create_user(username='user_financeiro', password='123')
+        user_financeiro.groups.add(group_financeiro)
+
+        # 1. Técnico acessa Inventário (200) e Dashboard SNMP (200), mas é redirecionado ao acessar Controle (302)
+        self.client.force_login(user_tecnico)
+        res_ctrl = self.client.get(reverse('dashboard_geral'))
+        self.assertEqual(res_ctrl.status_code, 302)
+        res_inv = self.client.get(reverse('inventario_dashboard'))
+        self.assertEqual(res_inv.status_code, 200)
+        res_snmp = self.client.get(reverse('snmp_dashboard'))
+        self.assertEqual(res_snmp.status_code, 200)
+
+        # 2. Financeiro acessa Controle (200), mas é redirecionado ao acessar Inventário (302) e Dashboard SNMP (302)
+        self.client.force_login(user_financeiro)
+        res_ctrl_fin = self.client.get(reverse('dashboard_geral'))
+        self.assertEqual(res_ctrl_fin.status_code, 200)
+        res_inv_fin = self.client.get(reverse('inventario_dashboard'))
+        self.assertEqual(res_inv_fin.status_code, 302)
+        res_snmp_fin = self.client.get(reverse('snmp_dashboard'))
+        self.assertEqual(res_snmp_fin.status_code, 302)
+
 
 
 

@@ -150,7 +150,7 @@ class UserRegistrationForm(forms.Form):
         label="Senha"
     )
     perfil = forms.ChoiceField(
-        choices=[('Admin', 'Administrador'), ('Técnico', 'Técnico')],
+        choices=[('Admin', 'Administrador'), ('Técnico', 'Técnico'), ('Financeiro', 'Financeiro')],
         label="Tipo / Perfil",
         widget=forms.Select(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm'})
     )
@@ -194,7 +194,7 @@ class UserEditForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm'})
     )
     perfil = forms.ChoiceField(
-        choices=[('Admin', 'Administrador'), ('Técnico', 'Técnico')],
+        choices=[('Admin', 'Administrador'), ('Técnico', 'Técnico'), ('Financeiro', 'Financeiro')],
         label="Tipo / Perfil",
         widget=forms.Select(attrs={'class': 'block w-full px-3 py-2 border border-gray-300 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-950 text-gray-900 dark:text-white focus:outline-none focus:ring-brand-500 focus:border-brand-500 text-sm'})
     )

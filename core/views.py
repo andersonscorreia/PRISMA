@@ -40,12 +40,23 @@ def group_required(*group_names):
         raise PermissionDenied
     return user_passes_test(check, login_url='login')
 
+def get_user_default_redirect_url(user):
+    if not user.is_authenticated:
+        return 'login'
+    if user.is_superuser or user.groups.filter(name='Admin').exists() or not user.groups.exists():
+        return 'dashboard_geral'
+    if user.groups.filter(name='Financeiro').exists():
+        return 'dashboard_geral'
+    if user.groups.filter(name='Técnico').exists():
+        return 'snmp_dashboard'
+    return 'dashboard_geral'
+
 # =====================================================
 # AUTENTICAÇÃO
 # =====================================================
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect('dashboard_geral')
+        return redirect(get_user_default_redirect_url(request.user))
         
     if request.method == 'POST':
         u = request.POST.get('username')
@@ -53,7 +64,7 @@ def login_view(request):
         user = authenticate(username=u, password=p)
         if user is not None:
             login(request, user)
-            return redirect('dashboard_geral')
+            return redirect(get_user_default_redirect_url(user))
         else:
             messages.error(request, 'Usuário ou senha incorretos.')
             
@@ -68,6 +79,9 @@ def logout_view(request):
 # =====================================================
 @login_required(login_url='login')
 def dashboard_geral(request):
+    # Controle de Usuários: Técnico acessa apenas Dashboard e Inventário
+    if request.user.groups.filter(name='Técnico').exists() and not (request.user.is_superuser or request.user.groups.filter(name='Admin').exists()):
+        return redirect('snmp_dashboard')
     cliente_id = request.GET.get('cliente_id')
     clientes = Cliente.objects.all().order_by('nome')
     
@@ -1969,6 +1983,9 @@ def inventario_dashboard(request):
     """
     Dashboard de gerenciamento de inventário e logística de impressoras.
     """
+    # Controle de Usuários: Financeiro acessa apenas a tela Controle
+    if request.user.groups.filter(name='Financeiro').exists() and not (request.user.is_superuser or request.user.groups.filter(name='Admin').exists()):
+        return redirect('dashboard_geral')
     from django.db.models import Q
 
     clientes = Cliente.objects.all().order_by('nome')
