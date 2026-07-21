@@ -1,0 +1,605 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Métricas das Impressoras - PRISMA{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Métricas das Impressoras</h2>
+        <div class="text-sm text-gray-500 dark:text-zinc-400 flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>Monitoramento em tempo real de contadores e suprimentos via SNMP</span>
+            <span class="text-gray-300 dark:text-zinc-700 hidden sm:inline">•</span>
+            <span
+                class="inline-flex items-center gap-1 bg-gray-100 dark:bg-zinc-800 px-2 py-0.5 rounded-lg text-xs text-gray-700 dark:text-zinc-300 font-medium">
+                Última atualização: <span id="last-update-time">{% now "H:i:s" %}</span>
+            </span>
+        </div>
+    </div>
+    <div class="flex items-center gap-3">
+        <span
+            class="text-xs text-gray-400 dark:text-zinc-500 font-medium bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/80 px-2.5 py-1 rounded-lg select-none"
+            id="auto-refresh-timer">Auto-refresh em 30s</span>
+        <button onclick="window.location.reload();"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150"
+            title="Atualizar Dados">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H18.2" />
+            </svg>
+            Atualizar
+        </button>
+        <button onclick="toggleFullscreen();"
+            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150"
+            id="btn-fullscreen" title="Modo Monitoramento (Tela Cheia)">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="fullscreen-icon">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+            </svg>
+            Tela Cheia
+        </button>
+    </div>
+</div>
+
+<style>
+    /* Estilos para o Modo Monitoramento (Tela Cheia) */
+    .monitor-mode header {
+        display: none !important;
+    }
+
+    .monitor-mode main {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+        margin-top: 1rem !important;
+    }
+
+    .monitor-mode #theme-toggle {
+        opacity: 0.15;
+    }
+
+    .monitor-mode #theme-toggle:hover {
+        opacity: 1;
+    }
+
+    /* Grid de colunas dinâmicas para preenchimento de tela */
+    .monitor-mode #printer-grid,
+    .monitor-mode #duplicate-grid {
+        grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)) !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Layout compacto para evitar rolagem vertical */
+    .monitor-mode .p-5 {
+        padding: 0.85rem !important;
+    }
+
+    .monitor-mode .mb-5 {
+        margin-bottom: 0.6rem !important;
+        padding-bottom: 0.6rem !important;
+    }
+
+    .monitor-mode .mt-4 {
+        margin-top: 0.4rem !important;
+    }
+
+    .monitor-mode .space-y-3>*+* {
+        margin-top: 0.35rem !important;
+    }
+
+    .monitor-mode .h-2 {
+        height: 0.4rem !important;
+    }
+
+    .monitor-mode .toner-bar {
+        height: 0.4rem !important;
+    }
+</style>
+
+<script>
+    // Função para inicializar as barras de suprimentos (toner)
+    function initTonerBars() {
+        document.querySelectorAll('.toner-bar').forEach(bar => {
+            const level = bar.getAttribute('data-level');
+            if (level && level !== 'N/A') {
+                const numericLevel = parseFloat(level.replace(',', '.'));
+                if (!isNaN(numericLevel)) {
+                    const clampedLevel = Math.max(0, Math.min(100, numericLevel));
+                    bar.style.width = clampedLevel + '%';
+                }
+            }
+        });
+    }
+
+    // Inicialização ao carregar a página
+    if (localStorage.getItem('monitor-mode') === 'true') {
+        document.documentElement.classList.add('monitor-mode');
+        window.addEventListener('DOMContentLoaded', () => {
+            updateFullscreenButton(true);
+            initTonerBars();
+        });
+    } else {
+        window.addEventListener('DOMContentLoaded', () => {
+            initTonerBars();
+        });
+    }
+
+    // Função para atualizar os dados do Dashboard via AJAX (sem recarregar e sem sair da tela cheia)
+    function refreshDashboardData() {
+        fetch(window.location.href)
+            .then(response => {
+                if (response.ok) return response.text();
+                throw new Error('Erro na requisição AJAX.');
+            })
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+
+                // 1. Atualiza KPIs e listagem de impressoras
+                const newWrapper = doc.getElementById('dashboard-content-wrapper');
+                const oldWrapper = document.getElementById('dashboard-content-wrapper');
+                if (newWrapper && oldWrapper) {
+                    oldWrapper.innerHTML = newWrapper.innerHTML;
+                }
+
+                // 2. Atualiza o relógio de última atualização do painel
+                const newTime = doc.getElementById('last-update-time');
+                const oldTime = document.getElementById('last-update-time');
+                if (newTime && oldTime) {
+                    oldTime.textContent = newTime.textContent;
+                }
+
+                // 3. Reinicializa as barras de toner nos novos elementos do DOM
+                initTonerBars();
+            })
+            .catch(err => {
+                console.error('Falha na atualização automática:', err);
+            });
+    }
+
+    // Contador regressivo e recarregamento automático (via AJAX)
+    (function () {
+        let secondsLeft = 30;
+        const timerEl = document.getElementById('auto-refresh-timer');
+        if (timerEl) {
+            const interval = setInterval(() => {
+                secondsLeft--;
+                if (secondsLeft <= 0) {
+                    secondsLeft = 30; // reinicia o contador
+                    timerEl.textContent = `Auto-refresh em 30s`;
+                    refreshDashboardData();
+                } else {
+                    timerEl.textContent = `Auto-refresh em ${secondsLeft}s`;
+                }
+            }, 1000);
+        }
+    })();
+
+    // Funções de Tela Cheia (Modo Monitoramento)
+    function toggleFullscreen() {
+        if (!document.documentElement.classList.contains('monitor-mode')) {
+            document.documentElement.classList.add('monitor-mode');
+            localStorage.setItem('monitor-mode', 'true');
+            updateFullscreenButton(true);
+
+            // Tenta ativar a tela cheia nativa do navegador
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log("Tela cheia nativa bloqueada ou não suportada:", err.message);
+                });
+            }
+        } else {
+            document.documentElement.classList.remove('monitor-mode');
+            localStorage.setItem('monitor-mode', 'false');
+            updateFullscreenButton(false);
+
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.log(err));
+            }
+        }
+    }
+
+    function updateFullscreenButton(isFullscreen) {
+        const btn = document.getElementById('btn-fullscreen');
+        if (!btn) return;
+        if (isFullscreen) {
+            btn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="fullscreen-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 4h4v4m0 0L4 4m16 0h-4v4m0 0l4-4M4 20h4v-4m0 0l-4 4m16 0h-4v-4m0 0l4 4" />
+                </svg>
+                Sair Tela Cheia
+            `;
+        } else {
+            btn.innerHTML = `
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="fullscreen-icon">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
+                </svg>
+                Tela Cheia
+            `;
+        }
+    }
+
+    // Função de Filtragem Interativa por Card KPI
+    function filterPrinters(filterType, clickedCard) {
+        document.querySelectorAll('.filter-kpi-card').forEach(card => {
+            card.classList.remove('ring-2', 'ring-brand-500', 'border-brand-500');
+        });
+
+        if (clickedCard) {
+            clickedCard.classList.add('ring-2', 'ring-brand-500', 'border-brand-500');
+        }
+
+        const cards = document.querySelectorAll('.printer-card');
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+            const status = card.getAttribute('data-status');
+            const lowToner = card.getAttribute('data-low-toner');
+
+            let show = false;
+            if (filterType === 'all') {
+                show = true;
+            } else if (filterType === 'online') {
+                show = (status === 'online');
+            } else if (filterType === 'offline') {
+                show = (status === 'offline');
+            } else if (filterType === 'low_toner') {
+                show = (lowToner === 'true');
+            }
+
+            if (show) {
+                card.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+
+        const counterEl = document.getElementById('visible-printers-count');
+        if (counterEl) {
+            if (filterType === 'all') {
+                counterEl.textContent = `(${visibleCount} total)`;
+            } else {
+                counterEl.textContent = `(${visibleCount} exibidas no filtro)`;
+            }
+        }
+    }
+
+    // Monitora saída via tecla ESC ou clique nativo do navegador
+    document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement) {
+            if (localStorage.getItem('monitor-mode') === 'true' && !window.performance.navigation.type) {
+                document.documentElement.classList.remove('monitor-mode');
+                localStorage.setItem('monitor-mode', 'false');
+                updateFullscreenButton(false);
+            }
+        }
+    });
+</script>
+
+<div id="dashboard-content-wrapper">
+    <!-- KPIs (Filtros Interativos) -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Total -->
+        <div onclick="filterPrinters('all', this)"
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ring-2 ring-brand-500 border-brand-500">
+            <div>
+                <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Total Impressoras</p>
+                <h3 class="text-2xl font-bold mt-1 text-gray-900 dark:text-white">{{ total_printers }}</h3>
+                <span class="text-[10px] text-gray-400 font-medium block mt-0.5">Exibir todas</span>
+            </div>
+            <div class="p-3 bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-zinc-300 rounded-xl shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Online -->
+        <div onclick="filterPrinters('online', this)"
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <div>
+                <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Online</p>
+                <h3 class="text-2xl font-bold mt-1 text-emerald-600 dark:text-emerald-500">{{ online_printers }}</h3>
+                <span class="text-[10px] text-emerald-500/80 font-medium block mt-0.5">Filtrar apenas online</span>
+            </div>
+            <div class="p-3 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 rounded-xl shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Offline -->
+        <div onclick="filterPrinters('offline', this)"
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <div>
+                <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Offline / Inativas</p>
+                <h3 class="text-2xl font-bold mt-1 text-brand-500">{{ offline_printers }}</h3>
+                <span class="text-[10px] text-brand-500/80 font-medium block mt-0.5">Filtrar inativas/erro</span>
+            </div>
+            <div class="p-3 bg-brand-50 dark:bg-brand-950/30 text-brand-500 rounded-xl shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Toners baixos -->
+        <div onclick="filterPrinters('low_toner', this)"
+            class="filter-kpi-card bg-white dark:bg-zinc-900 p-5 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm flex items-center justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+            <div>
+                <p class="text-xs font-medium text-gray-500 dark:text-zinc-400 uppercase tracking-wider">Toners &lt; 15%</p>
+                <h3 class="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-500">{{ low_toner_count }}</h3>
+                <span class="text-[10px] text-amber-500/80 font-medium block mt-0.5">Filtrar suprimento baixo</span>
+            </div>
+            <div class="p-3 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 rounded-xl shrink-0">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+        </div>
+    </section>
+
+    <!-- Printer Grid -->
+    <h2 class="text-lg font-bold mb-4 text-gray-900 dark:text-white flex items-center gap-2">
+        Dispositivos Monitorados
+        <span id="visible-printers-count" class="text-sm font-normal text-gray-500 dark:text-zinc-400">({{ printers|length }} total)</span>
+    </h2>
+
+    {% if not printers %}
+    <div class="bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-2xl p-12 text-center">
+        <svg class="w-16 h-16 text-gray-300 dark:text-zinc-700 mx-auto mb-4" fill="none" stroke="currentColor"
+            viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+        </svg>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Nenhuma impressora coletada</h3>
+
+    </div>
+    {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="printer-grid">
+        {% for printer in printers %}
+        <div data-status="{% if printer.status == 'Online' %}online{% else %}offline{% endif %}" data-low-toner="{% if printer.has_low_toner %}true{% else %}false{% endif %}"
+            class="printer-card bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between {% if printer.is_offline %}border-brand-500/50 bg-brand-950/10{% elif printer.has_low_toner %}border-amber-500/50 bg-amber-950/10{% endif %}">
+
+            <!-- Card Header -->
+            <div class="p-5 border-b border-gray-100 dark:border-zinc-800">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <h4 class="font-bold text-gray-900 dark:text-white text-base">{{ printer.name }}</h4>
+                        <p class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{{ printer.model }}</p>
+                    </div>
+                    <span
+                        class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold {% if printer.status == 'Online' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400{% else %}bg-brand-50 dark:bg-brand-950/40 text-brand-500{% endif %}">
+                        <span
+                            class="w-1.5 h-1.5 rounded-full {% if printer.status == 'Online' %}bg-emerald-500{% else %}bg-brand-500{% endif %}"></span>
+                        {{ printer.status }}
+                    </span>
+                </div>
+
+                <!-- Connection Info -->
+                <div class="grid grid-cols-2 gap-x-2 gap-y-2 mt-4 text-xs">
+                    <div>
+                        <span class="text-gray-400">Endereço IP</span>
+                        <p class="font-medium text-gray-700 dark:text-zinc-300">{{ printer.ip_address }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400">Nº de Série</span>
+                        <p class="font-medium text-gray-700 dark:text-zinc-300 truncate"
+                            title="{{ printer.serial_number }}">{{ printer.serial_number }}</p>
+                    </div>
+                    <div
+                        class="col-span-2 border-t border-gray-100 dark:border-zinc-800/80 pt-2 flex justify-between items-center text-[10px]">
+                        <span class="text-gray-400 font-medium">Última comunicação:</span>
+                        <span class="font-bold text-gray-600 dark:text-zinc-300">
+                            {% if printer.data_coleta %}
+                            {{ printer.data_coleta|date:"d/m/Y H:i:s" }}
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Body -->
+            <div class="p-5 flex-grow">
+                <!-- Counters & Uptime -->
+                <div class="grid grid-cols-2 gap-4 mb-5 pb-5 border-b border-gray-100 dark:border-zinc-800">
+                    <div>
+                        <span class="text-xs text-gray-400 uppercase tracking-wider font-medium">Contador Geral</span>
+                        <p class="text-lg font-bold text-gray-900 dark:text-white mt-0.5">
+                            {% if printer.last_counter is not None %}
+                            {{ printer.last_counter }}
+                            {% else %}
+                            <span class="text-gray-400 font-normal">N/A</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <span class="text-xs text-gray-400 uppercase tracking-wider font-medium">Uptime</span>
+                        <p class="text-sm font-semibold text-gray-700 dark:text-zinc-300 mt-1 truncate"
+                            title="{{ printer.tempo_ligada }}">
+                            {{ printer.tempo_ligada }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Sub-counters block (Epson/CMYK) -->
+                {% if printer.contador_total is not None or printer.contador_a4 is not None %}
+                <div class="grid grid-cols-3 gap-2 mb-5 pb-5 border-b border-gray-100 dark:border-zinc-800 text-[11px]">
+                    <div>
+                        <span class="text-gray-400 font-medium block uppercase tracking-wider text-[9px]">Contador A4</span>
+                        <p class="font-bold text-gray-800 dark:text-zinc-200 mt-0.5">{{ printer.contador_a4|default:"0" }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 font-medium block uppercase tracking-wider text-[9px]">Contador A3</span>
+                        <p class="font-bold text-gray-800 dark:text-zinc-200 mt-0.5">{{ printer.contador_a3|default:"0" }}</p>
+                    </div>
+                    <div>
+                        <span class="text-gray-400 font-medium block uppercase tracking-wider text-[9px]">Contador A5</span>
+                        <p class="font-bold text-gray-800 dark:text-zinc-200 mt-0.5">{{ printer.contador_a5|default:"0" }}</p>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Toner levels -->
+                <div>
+                    <span class="text-xs text-gray-400 uppercase tracking-wider font-medium block mb-3">Níveis de Suprimentos</span>
+
+                    {% if not printer.last_toner_data %}
+                    <p class="text-xs text-gray-400 italic">Nenhum nível coletado.</p>
+                    {% else %}
+                    <div class="space-y-3">
+                        {% for toner in printer.last_toner_data %}
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-medium flex items-center gap-1.5">
+                                    <!-- Color dot -->
+                                    <span class="w-2.5 h-2.5 rounded-full border border-gray-300 dark:border-zinc-700 shadow-sm
+                                        {% if toner.color == 'Black' %}bg-black dark:bg-white
+                                        {% elif toner.color == 'Cyan' %}bg-cyan-400
+                                        {% elif toner.color == 'Magenta' %}bg-pink-500
+                                        {% elif toner.color == 'Yellow' %}bg-yellow-300
+                                        {% else %}bg-purple-500{% endif %}">
+                                    </span>
+                                    {{ toner.color }}
+                                </span>
+                                <span class="font-semibold {% if toner.level == 'N/A' or toner.level < 15 %}text-brand-500{% else %}text-gray-700 dark:text-zinc-300{% endif %}">
+                                    {% if toner.level == 'N/A' %}N/A{% elif toner.level < 0 %}0,0%{% else %}{{ toner.level }}%{% endif %}
+                                </span>
+                            </div>
+                            <div class="w-full bg-gray-100 dark:bg-zinc-800 rounded-full h-2">
+                                {% if toner.level == 'N/A' %}
+                                <div class="bg-gray-300 dark:bg-zinc-700 h-2 rounded-full" style="width: 0%"></div>
+                                {% else %}
+                                <div class="h-2 rounded-full shadow-sm toner-bar
+                                        {% if toner.level < 15 %}bg-brand-500
+                                        {% elif toner.color == 'Black' %}bg-zinc-700 dark:bg-zinc-300
+                                        {% elif toner.color == 'Cyan' %}bg-cyan-400
+                                        {% elif toner.color == 'Magenta' %}bg-pink-500
+                                        {% elif toner.color == 'Yellow' %}bg-yellow-300
+                                        {% else %}bg-purple-500{% endif %}" data-level="{% if toner.level < 0 %}0{% else %}{{ toner.level }}{% endif %}">
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card Footer (System status message) -->
+            <div
+                class="px-5 py-3.5 bg-gray-50 dark:bg-zinc-900/50 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between">
+                <span class="text-[11px] text-gray-400 uppercase tracking-wide">Mensagem de Painel</span>
+                <span class="text-xs font-medium text-gray-600 dark:text-zinc-400 truncate max-w-[200px]"
+                    title="{{ printer.mensagem_erro }}">
+                    {{ printer.mensagem_erro }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if duplicate_printers %}
+    <div class="mt-12 border-t border-brand-500/20 pt-8">
+        <h2 class="text-lg font-bold mb-2 text-brand-500 flex items-center gap-2">
+            <svg class="w-5 h-5 text-brand-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Dispositivos Inconsistentes / Duplicados Detectados
+            <span class="text-xs font-normal px-2 py-0.5 rounded bg-brand-500/10 text-brand-500">({{
+                duplicate_printers|length }} duplicado(s))</span>
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-zinc-400 mb-6">
+            Os dispositivos abaixo foram identificados como possíveis cadastros duplicados ou de teste porque
+            compartilham o
+            mesmo número de série com um dispositivo ativo real.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 opacity-75 hover:opacity-100 transition-opacity duration-200"
+            id="duplicate-grid">
+            {% for printer in duplicate_printers %}
+            <div
+                class="bg-white dark:bg-zinc-900 rounded-2xl border border-brand-500/30 dark:border-brand-500/20 shadow-sm overflow-hidden flex flex-col justify-between relative">
+                <!-- Warning Watermark or Badge -->
+                <div class="absolute top-2 right-2 z-10">
+                    <span class="px-2 py-0.5 text-[10px] font-bold uppercase bg-brand-500 text-white rounded">Duplicata
+                        /
+                        Teste</span>
+                </div>
+
+                <!-- Card Header -->
+                <div class="p-5 border-b border-gray-100 dark:border-zinc-800 bg-brand-500/5">
+                    <div>
+                        <h4 class="font-bold text-gray-900 dark:text-white text-base">{{ printer.name }}</h4>
+                        <p class="text-xs text-brand-500 mt-0.5 font-medium">
+                            {{ printer.model }} (Série: {{ printer.serial_number }})
+                        </p>
+                    </div>
+
+                    <!-- Connection Info -->
+                    <div class="grid grid-cols-2 gap-x-2 gap-y-2 mt-4 text-xs">
+                        <div>
+                            <span class="text-gray-400">Endereço IP</span>
+                            <p class="font-semibold text-brand-500 dark:text-brand-400">{{ printer.ip_address }}</p>
+                        </div>
+                        <div>
+                            <span class="text-gray-400">Status</span>
+                            <p class="font-medium text-gray-700 dark:text-zinc-300">{{ printer.status }}</p>
+                        </div>
+                        <div
+                            class="col-span-2 border-t border-brand-500/10 pt-2 flex justify-between items-center text-[10px]">
+                            <span class="text-gray-400 font-medium">Última comunicação:</span>
+                            <span class="font-bold text-gray-600 dark:text-zinc-300">
+                                {% if printer.data_coleta %}
+                                {{ printer.data_coleta|date:"d/m/Y H:i:s" }}
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="p-5 bg-gray-50/50 dark:bg-zinc-900/30">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-xs text-gray-400 uppercase tracking-wider font-medium">Contador</span>
+                            <p class="text-sm font-bold text-gray-900 dark:text-white mt-0.5">
+                                {% if printer.last_counter is not None %}
+                                {{ printer.last_counter }}
+                                {% else %}
+                                N/A
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div>
+                            <span class="text-xs text-gray-400 uppercase tracking-wider font-medium">Uptime</span>
+                            <p class="text-xs font-medium text-gray-700 dark:text-zinc-300 mt-0.5 truncate"
+                                title="{{ printer.tempo_ligada }}">
+                                {{ printer.tempo_ligada }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

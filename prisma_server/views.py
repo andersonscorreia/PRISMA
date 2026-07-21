@@ -217,22 +217,39 @@ def dashboard(request):
             unique_real_ips.add(ip)
             final_real_printers.append(p)
             
-    printers = final_real_printers
-    
-    total_printers = len(printers)
-    online_printers = sum(1 for p in printers if p.get("status") == "Online")
-    offline_printers = total_printers - online_printers
-    
     low_toner_count = 0
-    for p in printers:
+    for p in final_real_printers:
         has_low = False
         for t in p.get("last_toner_data", []):
             level = t.get("level")
             if t.get("color") != "Manutenção" and isinstance(level, (int, float)) and level < 15:
                 has_low = True
+                break
+        p["has_low_toner"] = has_low
+        p["is_offline"] = (p.get("status") != "Online")
         if has_low:
             low_toner_count += 1
-            
+
+    def printer_priority(p):
+        # 0: Offline com Toner Baixo
+        # 1: Offline
+        # 2: Toner Baixo
+        # 3: Online Normal
+        if p["is_offline"] and p["has_low_toner"]:
+            return 0
+        elif p["is_offline"]:
+            return 1
+        elif p["has_low_toner"]:
+            return 2
+        return 3
+
+    final_real_printers.sort(key=printer_priority)
+    printers = final_real_printers
+    
+    total_printers = len(printers)
+    online_printers = sum(1 for p in printers if p.get("status") == "Online")
+    offline_printers = total_printers - online_printers
+
     context = {
         "printers": printers,
         "duplicate_printers": duplicate_printers,
@@ -241,4 +258,4 @@ def dashboard(request):
         "offline_printers": offline_printers,
         "low_toner_count": low_toner_count
     }
-    return render(request, "dashboard.html", context)
+    return render(request, "core/dashboard.html", context)
