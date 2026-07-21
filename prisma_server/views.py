@@ -217,8 +217,29 @@ def dashboard(request):
             unique_real_ips.add(ip)
             final_real_printers.append(p)
             
+    from core.models import Cliente, Impressora
+
+    serial_to_cliente = {}
+    ip_to_cliente = {}
+    for imp in Impressora.objects.select_related('cliente').all():
+        if imp.cliente:
+            if imp.serial_number:
+                serial_to_cliente[imp.serial_number] = imp.cliente
+            if imp.ip_address:
+                ip_to_cliente[imp.ip_address] = imp.cliente
+
     low_toner_count = 0
     for p in final_real_printers:
+        sn = p.get("serial_number")
+        ip = p.get("ip_address")
+        c_obj = serial_to_cliente.get(sn) or ip_to_cliente.get(ip)
+        if c_obj:
+            p["cliente_id"] = str(c_obj.id)
+            p["cliente_nome"] = c_obj.nome
+        else:
+            p["cliente_id"] = ""
+            p["cliente_nome"] = "Sem Cliente"
+
         has_low = False
         for t in p.get("last_toner_data", []):
             level = t.get("level")
@@ -231,10 +252,6 @@ def dashboard(request):
             low_toner_count += 1
 
     def printer_priority(p):
-        # 0: Offline com Toner Baixo
-        # 1: Offline
-        # 2: Toner Baixo
-        # 3: Online Normal
         if p["is_offline"] and p["has_low_toner"]:
             return 0
         elif p["is_offline"]:
@@ -250,12 +267,15 @@ def dashboard(request):
     online_printers = sum(1 for p in printers if p.get("status") == "Online")
     offline_printers = total_printers - online_printers
 
+    clientes = Cliente.objects.all().order_by('nome')
+
     context = {
         "printers": printers,
         "duplicate_printers": duplicate_printers,
         "total_printers": total_printers,
         "online_printers": online_printers,
         "offline_printers": offline_printers,
-        "low_toner_count": low_toner_count
+        "low_toner_count": low_toner_count,
+        "clientes": clientes,
     }
     return render(request, "core/dashboard.html", context)

@@ -16,9 +16,34 @@
             </span>
         </div>
     </div>
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-wrap">
+        <!-- Filtro por Cliente (Custom Select PRISMA) -->
+        <div class="relative custom-select-wrapper" id="wrapper-cliente-metrics">
+            <input type="hidden" id="filter_cliente_id" value="">
+            <button type="button" onclick="toggleCustomSelect('wrapper-cliente-metrics')"
+                class="w-52 px-3.5 py-2 text-xs bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
+                <span id="label-cliente-metrics" class="truncate">— Todos os Clientes —</span>
+                <svg class="w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            <div id="dropdown-cliente-metrics"
+                class="hidden absolute top-full right-0 w-60 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs max-h-60 overflow-y-auto">
+                <div onclick="selectClientFilter('', '— Todos os Clientes —', event)"
+                    class="px-3 py-2 cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 font-bold bg-brand-500/10 text-brand-500 border-l-2 border-brand-500">
+                    — Todos os Clientes —
+                </div>
+                {% for c in clientes %}
+                <div onclick="selectClientFilter('{{ c.id }}', '{{ c.nome }}', event)"
+                    class="px-3 py-2 cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800/80 text-gray-700 dark:text-zinc-300">
+                    {{ c.nome }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
         <span
-            class="text-xs text-gray-400 dark:text-zinc-500 font-medium bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/80 px-2.5 py-1 rounded-lg select-none"
+            class="text-xs text-gray-400 dark:text-zinc-500 font-medium bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-xl select-none"
             id="auto-refresh-timer">Auto-refresh em 30s</span>
         <button onclick="window.location.reload();"
             class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150"
@@ -222,27 +247,55 @@
         }
     }
 
-    // Função de Filtragem Interativa por Card KPI
+    // Estado dos Filtros Combinados (Status + Cliente)
+    let currentStatusFilter = 'all';
+    let currentClientFilter = '';
+
     function filterPrinters(filterType, clickedCard) {
+        currentStatusFilter = filterType;
+        applyCombinedFilters();
+    }
+
+    function selectClientFilter(clientId, clientName, e) {
+        if (e) e.stopPropagation();
+        currentClientFilter = clientId;
+        
+        const label = document.getElementById('label-cliente-metrics');
+        if (label) label.innerText = clientName;
+        
+        const dropdown = document.getElementById('dropdown-cliente-metrics');
+        if (dropdown) dropdown.classList.add('hidden');
+        
+        dropdown.querySelectorAll('div').forEach(item => {
+            item.classList.remove('bg-brand-500/10', 'text-brand-500', 'font-bold', 'border-l-2', 'border-brand-500');
+        });
+        if (e && e.currentTarget) {
+            e.currentTarget.classList.add('bg-brand-500/10', 'text-brand-500', 'font-bold', 'border-l-2', 'border-brand-500');
+        }
+
+        applyCombinedFilters();
+    }
+
+    function applyCombinedFilters() {
         const cards = document.querySelectorAll('.printer-card');
         let visibleCount = 0;
 
         cards.forEach(card => {
             const status = card.getAttribute('data-status');
             const lowToner = card.getAttribute('data-low-toner');
+            const clienteId = card.getAttribute('data-cliente-id');
 
-            let show = false;
-            if (filterType === 'all') {
-                show = true;
-            } else if (filterType === 'online') {
-                show = (status === 'online');
-            } else if (filterType === 'offline') {
-                show = (status === 'offline');
-            } else if (filterType === 'low_toner') {
-                show = (lowToner === 'true');
-            }
+            let matchStatus = false;
+            if (currentStatusFilter === 'all') matchStatus = true;
+            else if (currentStatusFilter === 'online') matchStatus = (status === 'online');
+            else if (currentStatusFilter === 'offline') matchStatus = (status === 'offline');
+            else if (currentStatusFilter === 'low_toner') matchStatus = (lowToner === 'true');
 
-            if (show) {
+            let matchClient = false;
+            if (!currentClientFilter || currentClientFilter === '') matchClient = true;
+            else matchClient = (clienteId === currentClientFilter);
+
+            if (matchStatus && matchClient) {
                 card.classList.remove('hidden');
                 visibleCount++;
             } else {
@@ -252,13 +305,32 @@
 
         const counterEl = document.getElementById('visible-printers-count');
         if (counterEl) {
-            if (filterType === 'all') {
+            if (currentStatusFilter === 'all' && !currentClientFilter) {
                 counterEl.textContent = `(${visibleCount} total)`;
             } else {
                 counterEl.textContent = `(${visibleCount} exibidas no filtro)`;
             }
         }
     }
+
+    function toggleCustomSelect(wrapperId) {
+        const wrapper = document.getElementById(wrapperId);
+        if (!wrapper) return;
+        const dropdown = wrapper.querySelector('[id^="dropdown-"]');
+        const isHidden = dropdown.classList.contains('hidden');
+
+        document.querySelectorAll('.custom-select-wrapper [id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+
+        if (isHidden) {
+            dropdown.classList.remove('hidden');
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.custom-select-wrapper')) {
+            document.querySelectorAll('.custom-select-wrapper [id^="dropdown-"]').forEach(d => d.classList.add('hidden'));
+        }
+    });
 
     // Monitora saída via tecla ESC ou clique nativo do navegador
     document.addEventListener('fullscreenchange', () => {
@@ -359,7 +431,7 @@
     {% else %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="printer-grid">
         {% for printer in printers %}
-        <div data-status="{% if printer.status == 'Online' %}online{% else %}offline{% endif %}" data-low-toner="{% if printer.has_low_toner %}true{% else %}false{% endif %}"
+        <div data-status="{% if printer.status == 'Online' %}online{% else %}offline{% endif %}" data-low-toner="{% if printer.has_low_toner %}true{% else %}false{% endif %}" data-cliente-id="{{ printer.cliente_id }}"
             class="printer-card bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col justify-between {% if printer.is_offline %}border-brand-500/50 bg-brand-950/10{% elif printer.has_low_toner %}border-amber-500/50 bg-amber-950/10{% endif %}">
 
             <!-- Card Header -->
@@ -368,6 +440,9 @@
                     <div>
                         <h4 class="font-bold text-gray-900 dark:text-white text-base">{{ printer.name }}</h4>
                         <p class="text-xs text-gray-500 dark:text-zinc-400 mt-0.5">{{ printer.model }}</p>
+                        <span class="inline-block text-[10px] font-semibold text-brand-500 bg-brand-500/10 px-2 py-0.5 rounded-md mt-1">
+                            {{ printer.cliente_nome }}
+                        </span>
                     </div>
                     <span
                         class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold {% if printer.status == 'Online' %}bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400{% else %}bg-brand-50 dark:bg-brand-950/40 text-brand-500{% endif %}">
