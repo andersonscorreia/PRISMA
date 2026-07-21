@@ -608,6 +608,12 @@ def exportar_contadores_xlsx(request):
     if data_inicio > data_fim:
         data_inicio, data_fim = data_fim, data_inicio
 
+    cliente_nome = "Todos os Clientes"
+    if cliente_id:
+        c_obj = Cliente.objects.filter(pk=cliente_id).first()
+        if c_obj:
+            cliente_nome = c_obj.nome
+
     impressoras_qs = Impressora.objects.select_related('cliente', 'brand', 'oid_profile').order_by('cliente__nome', 'name')
     if cliente_id:
         impressoras_qs = impressoras_qs.filter(cliente__pk=cliente_id)
@@ -647,15 +653,15 @@ def exportar_contadores_xlsx(request):
     # 1. Título
     ws.merge_cells('A1:I1')
     title_cell = ws['A1']
-    title_cell.value = f'Relatório de Contadores por Período — {data_inicio.strftime("%d/%m/%Y")} até {data_fim.strftime("%d/%m/%Y")}'
-    title_cell.font  = Font(bold=True, size=13, color='C00000')
+    title_cell.value = f'Relatório de Contadores por Período — {data_inicio.strftime("%d/%m/%Y")} até {data_fim.strftime("%d/%m/%Y")} — Cliente: {cliente_nome}'
+    title_cell.font  = Font(bold=True, size=12, color='C00000')
     title_cell.alignment = center
     ws.row_dimensions[1].height = 28
 
     # 2. Sumário de Totais do Início
     ws.merge_cells('A3:I3')
     sum_title = ws['A3']
-    sum_title.value = "SUMÁRIO DE PRODUÇÃO ACUMULADA NO PERÍODO"
+    sum_title.value = f"SUMÁRIO DE PRODUÇÃO ACUMULADA NO PERÍODO ({cliente_nome.upper()})"
     sum_title.font = Font(bold=True, size=10, color='404040')
     sum_title.alignment = left
 
@@ -755,6 +761,235 @@ def exportar_contadores_xlsx(request):
         buf.read(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+    response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
+    return response
+
+
+@login_required(login_url='login')
+def exportar_contadores_pdf(request):
+    """
+    Gera um relatório em PDF elegante com os contadores por período.
+    Inclui Nome do Cliente, Sumário de Produção e Tabela Detalhada com Total Geral.
+    """
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+
+    data_inicio_str = request.GET.get('data_inicio', '').strip()
+    data_fim_str    = request.GET.get('data_fim', request.GET.get('data_referencia', '')).strip()
+    cliente_id      = request.GET.get('cliente_id', '').strip()
+    serial_query    = request.GET.get('serial', '').strip()
+    tipo_filtro     = request.GET.get('tipo', '').strip()
+
+    try:
+        data_fim = datetime.strptime(data_fim_str, '%Y-%m-%d').date() if data_fim_str else date.today()
+    except (ValueError, TypeError):
+        data_fim = date.today()
+
+    try:
+        data_inicio = datetime.strptime(data_inicio_str, '%Y-%m-%d').date() if data_inicio_str else date(data_fim.year, data_fim.month, 1)
+    except (ValueError, TypeError):
+        data_inicio = date(data_fim.year, data_fim.month, 1)
+
+    if data_inicio > data_fim:
+        data_inicio, data_fim = data_fim, data_inicio
+
+    cliente_nome = "Todos os Clientes"
+    if cliente_id:
+        c_obj = Cliente.objects.filter(pk=cliente_id).first()
+        if c_obj:
+            cliente_nome = c_obj.nome
+
+    impressoras_qs = Impressora.objects.select_related('cliente', 'brand', 'oid_profile').order_by('cliente__nome', 'name')
+    if cliente_id:
+        impressoras_qs = impressoras_qs.filter(cliente__pk=cliente_id)
+    if serial_query:
+        impressoras_qs = impressoras_qs.filter(
+            Q(serial_number__icontains=serial_query) |
+            Q(modelo__icontains=serial_query) |
+            Q(name__icontains=serial_query)
+        )
+
+    linhas = obter_linhas_contadores_discriminados(impressoras_qs, data_inicio=data_inicio, data_fim=data_fim)
+    if tipo_filtro:
+        linhas = [r for r in linhas if r['tipo'].lower() == tipo_filtro.lower()]
+
+    soma_periodo_total = sum(r['consumo'] for r in linhas)
+    soma_a4    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A4')
+    soma_a3    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A3')
+    soma_a5    = sum(r['consumo'] for r in linhas if r['tipo'] == 'A5')
+    soma_pb    = sum(r['consumo'] for r in linhas if r['tipo'] == 'Total')
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=landscape(A4),
+        rightMargin=20,
+        leftMargin=20,
+        topMargin=20,
+        bottomMargin=20
+    )
+
+    elements = []
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'DocTitle',
+        parent=styles['Heading1'],
+        fontName='Helvetica-Bold',
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor('#C00000'),
+        spaceAfter=3
+    )
+
+    subtitle_style = ParagraphStyle(
+        'DocSubTitle',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=9.5,
+        leading=13,
+        textColor=colors.HexColor('#444444'),
+        spaceAfter=10
+    )
+
+    cell_hdr_style = ParagraphStyle(
+        'CellHdr',
+        parent=styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        textColor=colors.white,
+        alignment=1
+    )
+
+    cell_body_style = ParagraphStyle(
+        'CellBody',
+        parent=styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7.5,
+        leading=9.5,
+        textColor=colors.HexColor('#222222')
+    )
+
+    cell_body_center = ParagraphStyle(
+        'CellBodyCenter',
+        parent=cell_body_style,
+        alignment=1
+    )
+
+    cell_body_right = ParagraphStyle(
+        'CellBodyRight',
+        parent=cell_body_style,
+        alignment=2
+    )
+
+    cell_total_style = ParagraphStyle(
+        'CellTotal',
+        parent=cell_body_right,
+        fontName='Helvetica-Bold',
+        fontSize=8.5,
+        leading=10.5,
+        textColor=colors.HexColor('#C00000')
+    )
+
+    # 1. Cabeçalho
+    elements.append(Paragraph("PRISMA — Relatório de Contadores por Período", title_style))
+    elements.append(Paragraph(f"<b>Período:</b> {data_inicio.strftime('%d/%m/%Y')} até {data_fim.strftime('%d/%m/%Y')} &nbsp;&nbsp;|&nbsp;&nbsp; <b>Cliente:</b> {cliente_nome}", subtitle_style))
+
+    # 2. Sumário
+    sum_data = [
+        [
+            Paragraph("<b>PRODUÇÃO TOTAL</b>", cell_body_center),
+            Paragraph("<b>PRODUÇÃO A4</b>", cell_body_center),
+            Paragraph("<b>PRODUÇÃO A3</b>", cell_body_center),
+            Paragraph("<b>PRODUÇÃO A5</b>", cell_body_center),
+            Paragraph("<b>PRODUÇÃO TOTAL (PB)</b>", cell_body_center),
+        ],
+        [
+            Paragraph(f"<b>{soma_periodo_total:,} págs</b>".replace(',', '.'), cell_body_center),
+            Paragraph(f"<b>{soma_a4:,} págs</b>".replace(',', '.'), cell_body_center),
+            Paragraph(f"<b>{soma_a3:,} págs</b>".replace(',', '.'), cell_body_center),
+            Paragraph(f"<b>{soma_a5:,} págs</b>".replace(',', '.'), cell_body_center),
+            Paragraph(f"<b>{soma_pb:,} págs</b>".replace(',', '.'), cell_body_center),
+        ]
+    ]
+
+    t_sum = Table(sum_data, colWidths=[156, 156, 156, 156, 156])
+    t_sum.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F2F4F8')),
+        ('BACKGROUND', (0,1), (-1,1), colors.HexColor('#FFFFFF')),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#D0D0D0')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(t_sum)
+    elements.append(Spacer(1, 10))
+
+    # 3. Tabela Principal
+    hdr_row = [
+        Paragraph("Equipamento", cell_hdr_style),
+        Paragraph("Tipo", cell_hdr_style),
+        Paragraph("Cliente", cell_hdr_style),
+        Paragraph("Endereço IP", cell_hdr_style),
+        Paragraph("Nº de Série", cell_hdr_style),
+        Paragraph("Leitura Inicial", cell_hdr_style),
+        Paragraph("Leitura Final", cell_hdr_style),
+        Paragraph("Produção no Período", cell_hdr_style),
+        Paragraph("Data Coleta", cell_hdr_style),
+    ]
+    table_data = [hdr_row]
+
+    for linha in linhas:
+        table_data.append([
+            Paragraph(str(linha['equipamento']), cell_body_style),
+            Paragraph(str(linha['tipo']), cell_body_center),
+            Paragraph(str(linha['cliente']), cell_body_style),
+            Paragraph(str(linha['ip']), cell_body_center),
+            Paragraph(str(linha['serial']), cell_body_center),
+            Paragraph(f"{linha['valor_inicio']:,}".replace(',', '.'), cell_body_right),
+            Paragraph(f"{linha['valor_fim']:,}".replace(',', '.'), cell_body_right),
+            Paragraph(f"<b>+{linha['consumo']:,}</b>".replace(',', '.'), cell_total_style),
+            Paragraph(str(linha['coleta']), cell_body_center),
+        ])
+
+    # Linha de Total Geral
+    table_data.append([
+        Paragraph("<b>TOTAL GERAL</b>", cell_total_style),
+        Paragraph("", cell_body_style),
+        Paragraph("", cell_body_style),
+        Paragraph("", cell_body_style),
+        Paragraph("", cell_body_style),
+        Paragraph("", cell_body_style),
+        Paragraph("", cell_body_style),
+        Paragraph(f"<b>+{soma_periodo_total:,}</b>".replace(',', '.'), cell_total_style),
+        Paragraph("", cell_body_style),
+    ])
+
+    t_main = Table(table_data, colWidths=[125, 45, 135, 75, 80, 75, 75, 95, 75])
+    t_style = [
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#C00000')),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#D0D0D0')),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#E5E7EB')),
+        ('TOPPADDING', (0,0), (-1,-1), 3.5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3.5),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor('#FFF2F2')),
+    ]
+    for r in range(1, len(table_data)-1):
+        if r % 2 == 0:
+            t_style.append(('BACKGROUND', (0, r), (-1, r), colors.HexColor('#F9FAFB')))
+
+    t_main.setStyle(TableStyle(t_style))
+    elements.append(t_main)
+
+    doc.build(elements)
+    buf.seek(0)
+
+    nome_arquivo = f'contadores_{data_inicio.strftime("%Y%m%d")}_a_{data_fim.strftime("%Y%m%d")}.pdf'
+    response = HttpResponse(buf.read(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="{nome_arquivo}"'
     return response
 

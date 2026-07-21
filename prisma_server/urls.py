@@ -31,6 +31,7 @@ urlpatterns = [
     # Exportação de Contadores
     path('exportar/', core_views.exportar_historico_counters, name='exportar_historico_counters'),
     path('exportar/contadores/', core_views.exportar_contadores_xlsx, name='exportar_contadores_xlsx'),
+    path('exportar/contadores/pdf/', core_views.exportar_contadores_pdf, name='exportar_contadores_pdf'),
     
     # Central de Gerenciamento / Admin (Exclusivo Admin)
     path('gerenciamento/', core_views.gerenciamento_painel, name='gerenciamento'),

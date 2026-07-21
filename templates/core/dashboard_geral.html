@@ -357,12 +357,20 @@
             </a>
             {% endif %}
             <a href="{% url 'exportar_contadores_xlsx' %}?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}{% if cliente_filtrado %}&cliente_id={{ cliente_filtrado.id }}{% endif %}{% if serial_query %}&serial={{ serial_query }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
-                class="px-4 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
+                class="px-3.5 py-2 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-                Exportar .xlsx
+                Exportar Excel
+            </a>
+            <a href="{% url 'exportar_contadores_pdf' %}?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}{% if cliente_filtrado %}&cliente_id={{ cliente_filtrado.id }}{% endif %}{% if serial_query %}&serial={{ serial_query }}{% endif %}{% if tipo_filtro %}&tipo={{ tipo_filtro }}{% endif %}"
+                class="px-3.5 py-2 text-xs bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-sm transition-all active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                Exportar PDF
             </a>
         </div>
     </form>
