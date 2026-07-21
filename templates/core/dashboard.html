@@ -16,19 +16,19 @@
             </span>
         </div>
     </div>
-    <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-nowrap">
         <!-- Filtro por Cliente (Custom Select PRISMA) -->
-        <div class="relative custom-select-wrapper" id="wrapper-cliente-metrics">
+        <div class="relative custom-select-wrapper shrink-0" id="wrapper-cliente-metrics">
             <input type="hidden" id="filter_cliente_id" value="">
             <button type="button" onclick="toggleCustomSelect('wrapper-cliente-metrics')"
-                class="w-52 px-3.5 py-2 text-xs bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
+                class="w-40 sm:w-44 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
                 <span id="label-cliente-metrics" class="truncate">— Todos os Clientes —</span>
                 <svg class="w-3.5 h-3.5 text-gray-400 shrink-0 transition-transform duration-200 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
             </button>
             <div id="dropdown-cliente-metrics"
-                class="hidden absolute top-full right-0 w-60 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs max-h-60 overflow-y-auto">
+                class="hidden absolute top-full right-0 w-56 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs max-h-60 overflow-y-auto">
                 <div onclick="selectClientFilter('', '— Todos os Clientes —', event)"
                     class="px-3 py-2 cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 font-bold bg-brand-500/10 text-brand-500 border-l-2 border-brand-500">
                     — Todos os Clientes —
@@ -43,10 +43,10 @@
         </div>
 
         <span
-            class="text-xs text-gray-400 dark:text-zinc-500 font-medium bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/80 px-2.5 py-1.5 rounded-xl select-none"
+            class="text-xs text-gray-400 dark:text-zinc-500 font-medium bg-gray-50 dark:bg-zinc-900/50 border border-gray-100 dark:border-zinc-800/80 px-2.5 py-2 rounded-xl select-none shrink-0"
             id="auto-refresh-timer">Auto-refresh em 30s</span>
         <button onclick="window.location.reload();"
-            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150 shrink-0"
             title="Atualizar Dados">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -55,7 +55,7 @@
             Atualizar
         </button>
         <button onclick="toggleFullscreen();"
-            class="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150"
+            class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-600 dark:text-zinc-300 rounded-xl transition-all duration-150 shrink-0"
             id="btn-fullscreen" title="Modo Monitoramento (Tela Cheia)">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" id="fullscreen-icon">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
