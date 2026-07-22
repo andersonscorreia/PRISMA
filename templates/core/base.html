@@ -102,7 +102,7 @@
                         <span class="text-gray-500 dark:text-zinc-400 hidden sm:inline">Olá, <strong
                                 class="text-gray-900 dark:text-white">{{ request.user.username }}</strong></span>
                         <a href="{% url 'logout' %}"
-                            class="text-brand-500 hover:text-brand-600 font-bold flex items-center gap-1">
+                            class="text-brand-500 hover:text-brand-600 font-bold hidden md:flex items-center gap-1">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -110,12 +110,59 @@
                             Sair
                         </a>
                     </div>
+                    <!-- Hamburger Button -->
+                    <button id="mobile-menu-btn" class="md:hidden p-2 rounded-lg text-gray-600 dark:text-zinc-300 hover:bg-gray-100 dark:hover:bg-zinc-800 focus:outline-none" title="Menu">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                     {% else %}
                     <a href="{% url 'login' %}" class="text-brand-500 hover:text-brand-600 font-bold">Entrar</a>
                     {% endif %}
                 </div>
             </div>
         </header>
+
+        <!-- Mobile Navigation Menu Drawer -->
+        <div id="mobile-menu" class="hidden md:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex justify-end">
+            <div class="w-64 h-full bg-white dark:bg-zinc-900 shadow-xl border-l border-gray-200 dark:border-zinc-800 p-6 flex flex-col justify-between transform transition-transform duration-200">
+                <div>
+                    <div class="flex items-center justify-between mb-8">
+                        <h2 class="text-lg font-bold text-gray-900 dark:text-white">Navegação</h2>
+                        <button id="mobile-menu-close" class="p-1 rounded-lg text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-white" title="Fechar Menu">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <nav class="flex flex-col gap-4 text-base font-semibold">
+                        {% if is_admin or is_financeiro %}
+                        <a href="{% url 'dashboard_geral' %}" class="py-2 px-3 rounded-lg text-gray-700 dark:text-zinc-200 hover:bg-gray-155 dark:hover:bg-zinc-800 hover:text-brand-500">Controle</a>
+                        {% endif %}
+                        {% if is_admin or is_tecnico %}
+                        <a href="{% url 'inventario_dashboard' %}" class="py-2 px-3 rounded-lg text-gray-700 dark:text-zinc-200 hover:bg-gray-155 dark:hover:bg-zinc-800 hover:text-brand-500">Inventário</a>
+                        <a href="{% url 'snmp_dashboard' %}" class="py-2 px-3 rounded-lg text-gray-700 dark:text-zinc-200 hover:bg-gray-155 dark:hover:bg-zinc-800 hover:text-brand-500">Dashboard</a>
+                        {% endif %}
+                        {% if is_admin %}
+                        <div class="h-[1px] bg-gray-200 dark:bg-zinc-800 my-2"></div>
+                        <a href="{% url 'gerenciamento' %}" class="py-2 px-3 rounded-lg text-gray-700 dark:text-zinc-200 hover:bg-gray-155 dark:hover:bg-zinc-800 hover:text-brand-500 font-bold">Gerenciamento</a>
+                        {% endif %}
+                    </nav>
+                </div>
+                <div class="border-t border-gray-200 dark:border-zinc-800 pt-4 flex flex-col gap-3">
+                    <div class="text-xs text-gray-500 dark:text-zinc-400">
+                        Olá, <strong class="text-gray-900 dark:text-white">{{ request.user.username }}</strong>
+                    </div>
+                    <a href="{% url 'logout' %}" class="w-full text-center py-2 px-4 rounded-xl text-sm font-bold text-white bg-brand-500 hover:bg-brand-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-brand-500/10">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Sair
+                    </a>
+                </div>
+            </div>
+        </div>
 
         <!-- Main Content -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
@@ -184,6 +231,28 @@
                 }
             }
         });
+
+        // Mobile Menu Toggling
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+        const mobileMenuClose = document.getElementById('mobile-menu-close');
+
+        if (mobileMenuBtn && mobileMenu) {
+            mobileMenuBtn.addEventListener('click', function() {
+                mobileMenu.classList.remove('hidden');
+            });
+        }
+
+        if (mobileMenuClose && mobileMenu) {
+            mobileMenuClose.addEventListener('click', function() {
+                mobileMenu.classList.add('hidden');
+            });
+            mobileMenu.addEventListener('click', function(e) {
+                if (e.target === mobileMenu) {
+                    mobileMenu.classList.add('hidden');
+                }
+            });
+        }
     </script>
 </body>
 

@@ -296,26 +296,26 @@
         class="flex flex-wrap items-end gap-3 w-full">
 
         <!-- Data Inicial -->
-        <div class="relative">
+        <div class="relative w-full sm:w-32">
             <label for="data_inicio" class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data
                 Inicial</label>
             <input type="text" id="data_inicio" name="data_inicio" value="{{ data_inicio }}" placeholder="DD/MM/AAAA"
-                class="block w-32 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
+                class="block w-full px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
         </div>
 
         <!-- Data Final -->
-        <div class="relative">
+        <div class="relative w-full sm:w-32">
             <label for="data_fim" class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Data Final</label>
             <input type="text" id="data_fim" name="data_fim" value="{{ data_fim }}" placeholder="DD/MM/AAAA"
-                class="block w-32 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
+                class="block w-full px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
         </div>
 
         <!-- Cliente Custom Select -->
-        <div class="relative custom-select-wrapper" id="wrapper-cliente">
+        <div class="relative custom-select-wrapper w-full sm:w-48" id="wrapper-cliente">
             <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Cliente</label>
             <input type="hidden" id="cliente_id" name="cliente_id" value="{% if cliente_filtrado %}{{ cliente_filtrado.id }}{% endif %}">
             <button type="button" onclick="toggleCustomSelect('wrapper-cliente')"
-                class="w-48 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
+                class="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
                 <span id="label-cliente" class="truncate">
                     {% if cliente_filtrado %}{{ cliente_filtrado.nome }}{% else %}— Todos os Clientes —{% endif %}
                 </span>
@@ -324,7 +324,7 @@
                 </svg>
             </button>
             <div id="dropdown-cliente"
-                class="hidden absolute top-full left-0 w-56 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs max-h-60 overflow-y-auto">
+                class="hidden absolute top-full left-0 w-full sm:w-56 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs max-h-60 overflow-y-auto">
                 <div onclick="selectCustomOption('wrapper-cliente', '', '— Todos os Clientes —', event)"
                     class="px-3 py-2 cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 {% if not cliente_filtrado %}bg-brand-500/10 text-brand-500 font-bold border-l-2 border-brand-500{% endif %}">
                     — Todos os Clientes —
@@ -339,18 +339,18 @@
         </div>
 
         <!-- Nº de Série -->
-        <div class="relative">
+        <div class="relative w-full sm:w-36">
             <label for="serial" class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Nº de Série</label>
             <input type="text" id="serial" name="serial" value="{{ serial_query }}" placeholder="Buscar N/S..."
-                class="block w-36 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
+                class="block w-full px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 text-gray-800 dark:text-zinc-100 font-medium shadow-sm">
         </div>
 
         <!-- Tipo de Contador Custom Select -->
-        <div class="relative custom-select-wrapper" id="wrapper-tipo">
+        <div class="relative custom-select-wrapper w-full sm:w-36" id="wrapper-tipo">
             <label class="block text-[10px] font-bold text-gray-400 uppercase mb-1">Tipo de Contador</label>
             <input type="hidden" id="tipo" name="tipo" value="{{ tipo_filtro }}">
             <button type="button" onclick="toggleCustomSelect('wrapper-tipo')"
-                class="w-36 px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
+                class="w-full px-3 py-2 text-xs bg-gray-50 dark:bg-zinc-950 border border-gray-200 dark:border-zinc-800 rounded-xl flex items-center justify-between font-semibold text-gray-800 dark:text-zinc-100 shadow-sm focus:outline-none focus:ring-1 focus:ring-brand-500 transition-all hover:border-brand-500/40 cursor-pointer">
                 <span id="label-tipo" class="truncate">
                     {% if tipo_filtro %}{{ tipo_filtro }}{% else %}— Todos —{% endif %}
                 </span>
@@ -359,7 +359,7 @@
                 </svg>
             </button>
             <div id="dropdown-tipo"
-                class="hidden absolute top-full left-0 w-44 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs">
+                class="hidden absolute top-full left-0 w-full sm:w-44 mt-1.5 bg-white dark:bg-zinc-900 border border-gray-200 dark:border-zinc-800 rounded-xl shadow-xl z-50 overflow-hidden py-1 text-xs">
                 <div onclick="selectCustomOption('wrapper-tipo', '', '— Todos —', event)"
                     class="px-3 py-2 cursor-pointer transition-colors hover:bg-gray-100 dark:hover:bg-zinc-800/80 text-gray-700 dark:text-zinc-300 {% if not tipo_filtro %}bg-brand-500/10 text-brand-500 font-bold border-l-2 border-brand-500{% endif %}">
                     — Todos —
@@ -374,7 +374,7 @@
         </div>
 
         <!-- Botões no Canto Direito -->
-        <div class="ml-auto flex items-center gap-2">
+        <div class="w-full lg:w-auto lg:ml-auto flex flex-wrap items-center gap-2 pt-2 lg:pt-0">
             <button type="submit"
                 class="px-4 py-2 text-xs bg-brand-500 hover:bg-brand-600 text-white font-bold rounded-xl transition-all shadow-sm active:scale-[0.98] inline-flex items-center gap-1.5 shrink-0">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

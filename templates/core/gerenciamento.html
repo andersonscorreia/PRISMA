@@ -31,21 +31,21 @@
 {% endif %}
 
 <!-- Tabs Navigation -->
-<div class="border-b border-gray-200 dark:border-zinc-800 mb-6">
-    <nav class="flex gap-6 text-sm font-medium" aria-label="Tabs">
-        <button id="tab-clientes-btn" onclick="showTab('clientes')" class="pb-4 px-1 border-b-2 border-brand-500 text-brand-500 font-bold focus:outline-none">
+<div class="border-b border-gray-200 dark:border-zinc-800 mb-6 overflow-x-auto scrollbar-none">
+    <nav class="flex gap-6 text-sm font-medium whitespace-nowrap" aria-label="Tabs">
+        <button id="tab-clientes-btn" onclick="showTab('clientes')" class="pb-4 px-1 border-b-2 border-brand-500 text-brand-500 font-bold focus:outline-none shrink-0">
             Clientes ({{ clientes|length }})
         </button>
-        <button id="tab-impressoras-btn" onclick="showTab('impressoras')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+        <button id="tab-impressoras-btn" onclick="showTab('impressoras')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none shrink-0">
             Impressoras ({{ impressoras|length }})
         </button>
-        <button id="tab-usuarios-btn" onclick="showTab('usuarios')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+        <button id="tab-usuarios-btn" onclick="showTab('usuarios')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none shrink-0">
             Usuários / Operadores ({{ usuarios|length }})
         </button>
-        <button id="tab-perfis_oid-btn" onclick="showTab('perfis_oid')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+        <button id="tab-perfis_oid-btn" onclick="showTab('perfis_oid')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none shrink-0">
             Perfis de OID ({{ perfis_oid|length }})
         </button>
-        <button id="tab-marcas-btn" onclick="showTab('marcas')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none">
+        <button id="tab-marcas-btn" onclick="showTab('marcas')" class="pb-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200 focus:outline-none shrink-0">
             Marcas ({{ marcas|length }})
         </button>
     </nav>
@@ -72,7 +72,8 @@
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
             <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                 <tr>
                     <th scope="col" class="px-6 py-4">Nome do Cliente</th>
@@ -115,6 +116,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -139,7 +141,8 @@
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
             <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                 <tr>
                     <th scope="col" class="px-6 py-4">Equipamento</th>
@@ -196,6 +199,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -220,7 +224,8 @@
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
             <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                 <tr>
                     <th scope="col" class="px-6 py-4">Username / Login</th>
@@ -267,6 +272,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -291,7 +297,8 @@
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
             <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                 <tr>
                     <th scope="col" class="px-6 py-4">Marca / Fabricante</th>
@@ -335,6 +342,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
@@ -359,7 +367,8 @@
     </div>
 
     <div class="bg-white dark:bg-zinc-900 rounded-2xl border border-gray-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-zinc-800 text-left text-sm">
             <thead class="bg-gray-50 dark:bg-zinc-900/50 text-xs font-semibold uppercase text-gray-500 dark:text-zinc-400 tracking-wider">
                 <tr>
                     <th scope="col" class="px-6 py-4">Nome da Marca</th>
@@ -411,6 +420,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
